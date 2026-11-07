@@ -1,0 +1,48 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste tokens, API keys or raw responses.** Responses can contain personal data. Replace ids and emails with placeholders.
+  - type: input
+    id: version
+    attributes:
+      label: Library version
+      description: Output of `pip show reportnet-api` (or the commit you installed)
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+    validations:
+      required: true
+  - type: dropdown
+    id: credential
+    attributes:
+      label: Credential type
+      description: Which kind of credential did you use? (See the README, "Auth".)
+      options: [ApiKey, Bearer token, Not sure]
+    validations:
+      required: true
+  - type: input
+    id: call
+    attributes:
+      label: Function or method
+      description: For example `easy.read_table` or `client.datasets.import_file_data`
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Include the exception text (`print(err.explain())` helps) and the HTTP status if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal code to reproduce
+      render: python

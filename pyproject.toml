@@ -1,0 +1,86 @@
+[project]
+name = "reportnet-api"
+version = "0.1.0"
+description = "Python client library for the EEA Reportnet 3 REST API"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["reportnet", "api-client", "rest-api", "pandas", "jupyter"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries",
+    "Typing :: Typed",
+]
+authors = [{ name = "Nikolaos Paximadakis", email = "nikolaos.paximadakis@eea.europa.eu" }]
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "pydantic>=2",
+]
+
+[project.optional-dependencies]
+pandas = ["pandas>=2"]
+
+[project.scripts]
+reportnet = "reportnet_api.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/eeadata/reportnet-api-python"
+Repository = "https://github.com/eeadata/reportnet-api-python"
+Issues = "https://github.com/eeadata/reportnet-api-python/issues"
+
+[dependency-groups]
+dev = [
+    "pandas>=2",
+    "datamodel-code-generator>=0.25",
+    "mypy>=1.11",
+    "pytest>=8",
+    "respx>=0.21",
+    "ruff>=0.6",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+]
+ui = [
+    "streamlit>=1.35",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["reportnet_api"]
+
+[tool.ruff]
+extend-exclude = ["examples"]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"reportnet_api/models/generated.py" = ["E501", "UP"]
+"reportnet_api/resources/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*"]
+ignore_missing_imports = true
