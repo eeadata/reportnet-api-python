@@ -1,0 +1,16 @@
+name: Feature request
+description: Suggest an endpoint, helper or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task first, then the function you wish existed.
+    validations:
+      required: true
+  - type: textarea
+    id: endpoint
+    attributes:
+      label: Reportnet endpoint, if you know it
+      description: HTTP method and path (for example from the Reportnet web app's network tab), and the role needed.

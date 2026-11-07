@@ -1,0 +1,2 @@
+reportnet-api[pandas] @ git+https://github.com/eeadata/reportnet-api-python@main
+openpyxl

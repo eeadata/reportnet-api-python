@@ -1,0 +1,31 @@
+site_name: Reportnet API Python client
+site_description: Python client for the Reportnet 3 REST API, with pandas helpers for notebooks.
+repo_url: https://github.com/eeadata/reportnet-api-python
+edit_uri: edit/main/docs/
+theme:
+  name: material
+  features: [navigation.sections, search.suggest, content.code.copy]
+nav:
+  - Home: index.md
+  - Which credential?: credentials.md
+  - Glossary: glossary.md
+  - Using it from FME: fme.md
+  - Reference:
+      - Overview: reference/index.md
+      - Notebook helpers (easy): reference/easy.md
+      - Handles: reference/handles.md
+      - Job polling: reference/jobs.md
+      - Dataflow: reference/dataflow.md
+      - Datasets: reference/datasets.md
+      - Dataset Schema: reference/dataset_schema.md
+      - Dataset Snapshot: reference/dataset_snapshot.md
+      - EU Datasets: reference/eu_datasets.md
+      - Reference dataset: reference/reference_dataset.md
+      - Release receipts: reference/release_receipts.md
+      - Representative: reference/representative.md
+      - User: reference/user.md
+      - Validation: reference/validation.md
+  - Notes:
+      - Live testing notes: live_testing_notes.md
+      - Removed private endpoints: removed_private_endpoints.md
+      - Releasing: RELEASING.md
