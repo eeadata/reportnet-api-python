@@ -32,6 +32,10 @@ repository's workflow, so no API token is created or stored.
 4. **Release:** create a GitHub release whose tag is `v<version>` (for example `v0.1.0`).
    The workflow refuses to publish if the tag and `pyproject.toml` disagree.
 5. Update the README's install line when the first release is out.
+6. Before the first upload, change the README logo's two `docs/assets/...` paths to
+   `https://raw.githubusercontent.com/eeadata/reportnet-api-python/main/docs/assets/...`:
+   PyPI cannot resolve relative image paths. Those links only work once the repository
+   is public, which is why the README uses relative paths until then.
 
 A version number on PyPI can never be reused, even after deleting it, so always rehearse
 first.
