@@ -15,9 +15,9 @@ repository's workflow, so no API token is created or stored.
 4. In the GitHub repository settings, create the two environments `pypi` and `testpypi`
    (for `pypi` you can require a reviewer's approval).
 5. Add a second owner or maintainer to the PyPI project, so it never depends on one person.
-6. Docs site: enable *Settings → Pages → Source: GitHub Actions*. The *Docs* workflow is
-   manual while the repository is private (Pages for private repositories needs a paid
-   plan); once public, add a `push` trigger to `.github/workflows/docs.yml`.
+6. Docs site: *Settings → Pages → Source: GitHub Actions* (done). The *Docs* workflow
+   publishes to https://eeadata.github.io/reportnet-api-python/ when `docs/**` or
+   `mkdocs.yml` change on `main`, or when run by hand.
 7. Actions are pinned to exact commits; Dependabot (`.github/dependabot.yml`) proposes
    updates monthly.
 
@@ -32,10 +32,9 @@ repository's workflow, so no API token is created or stored.
 4. **Release:** create a GitHub release whose tag is `v<version>` (for example `v0.1.0`).
    The workflow refuses to publish if the tag and `pyproject.toml` disagree.
 5. Update the README's install line when the first release is out.
-6. Before the first upload, change the README logo's two `docs/assets/...` paths to
-   `https://raw.githubusercontent.com/eeadata/reportnet-api-python/main/docs/assets/...`:
-   PyPI cannot resolve relative image paths. Those links only work once the repository
-   is public, which is why the README uses relative paths until then.
+6. Keep the README's images as absolute
+   `https://raw.githubusercontent.com/eeadata/reportnet-api-python/main/...` links:
+   PyPI cannot resolve relative image paths.
 
 A version number on PyPI can never be reused, even after deleting it, so always rehearse
 first.

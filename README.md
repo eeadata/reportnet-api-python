@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-    <img src="docs/assets/logo.svg" alt="reportnet-api for Python" width="420">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/eeadata/reportnet-api-python/main/docs/assets/logo-dark.svg">
+    <img src="https://raw.githubusercontent.com/eeadata/reportnet-api-python/main/docs/assets/logo.svg" alt="reportnet-api for Python" width="420">
   </picture>
 </p>
 

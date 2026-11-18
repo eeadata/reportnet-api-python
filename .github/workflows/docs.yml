@@ -1,9 +1,11 @@
 name: Docs
 
-# Manual for now: GitHub Pages for a private repository needs a paid plan, and Pages must
-# be enabled (Settings -> Pages -> Source: GitHub Actions). Once the repository is public,
-# add a "push: branches: [main]" trigger with "paths: [docs/**, mkdocs.yml]".
+# Publishes the site to GitHub Pages (Settings -> Pages -> Source: GitHub Actions) when the
+# docs change on main; can also be run by hand.
 on:
+  push:
+    branches: [main]
+    paths: [docs/**, mkdocs.yml]
   workflow_dispatch:
 
 permissions:
