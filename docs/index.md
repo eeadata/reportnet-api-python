@@ -24,10 +24,10 @@ sync and async, with notebook helpers that return pandas DataFrames.
 ## Install
 
 ```
-pip install "reportnet-api[pandas] @ git+https://github.com/eeadata/reportnet-api-python"
+pip install "reportnet-api[pandas]"
 ```
 
-(It is not on PyPI yet.) Python 3.11 or newer.
+Python 3.11 or newer. Without pandas: `pip install reportnet-api`.
 
 ## Three ways to use it
 

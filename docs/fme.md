@@ -16,8 +16,7 @@ you find.
   functions below do not need it. If another package in the same interpreter pins
   Pydantic 1, install into a separate environment and point the workspace at it.
 - Install into the interpreter the workspace uses, for example
-  `python -m pip install "reportnet-api @ git+https://github.com/eeadata/reportnet-api-python"`
-  (or `pip install reportnet-api` once it is on PyPI).
+  `python -m pip install reportnet-api`.
 
 ## Keep the credential out of the workspace
 

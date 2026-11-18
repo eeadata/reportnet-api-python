@@ -28,10 +28,11 @@ fictional built-in data; start with the
 ## Install
 
 ```
-uv add git+https://github.com/eeadata/reportnet-api-python
+pip install reportnet-api            # or: uv add reportnet-api
+pip install "reportnet-api[pandas]"  # with the pandas notebook helpers
 ```
 
-(Not published to PyPI yet.) Python 3.11 or newer.
+Python 3.11 or newer. The latest unreleased code: `pip install git+https://github.com/eeadata/reportnet-api-python`.
 
 ## Notebooks and non-developers
 
@@ -39,7 +40,7 @@ uv add git+https://github.com/eeadata/reportnet-api-python
 `REPORTNET_API_KEY`, and listings/tables returned as pandas DataFrames.
 
 ```python
-%pip install "reportnet-api[pandas] @ git+https://github.com/eeadata/reportnet-api-python"
+%pip install "reportnet-api[pandas]"
 
 from reportnet_api.easy import connect, list_dataflows, list_datasets, read_table
 client = connect()                      # or connect("<api key>"); a Bearer token: connect(tok, scheme="Bearer")

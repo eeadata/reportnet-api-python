@@ -4,7 +4,7 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-18)
 
 First public version.
 
