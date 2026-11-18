@@ -440,13 +440,13 @@ def export_validations(
 ) -> Path:
     """Save a dataset's validation failures as a CSV at `dest` and return the path.
 
-     Generates the export and waits for it (`validation.export_validations_to_file`).
-     Columns: Entity, Table, Field, Code, QC Name, QC Description, Severity Level,
-     Message, Number of records. Works on data-lake datasets (live, the sandbox,
-    ). Close any open Reportnet page for the same dataset first: the
-     backend deletes the file when it is served, so the web app, which downloads it
-     on the notification, can take it before this does and the wait ends in a
-     `JobError` timeout. Leaves a notification in the user's Reportnet UI.
+    Generates the export and waits for it (`validation.export_validations_to_file`).
+    Columns: Entity, Table, Field, Code, QC Name, QC Description, Severity Level,
+    Message, Number of records. Works on data-lake datasets (live-tested on the
+    sandbox). Close any open Reportnet page for the same dataset first: the backend
+    deletes the file when it is served, so the web app, which downloads it on the
+    notification, can take it before this does and the wait ends in a `JobError`
+    timeout. Leaves a notification in the user's Reportnet UI.
     """
     _require_id(dataset_id, "dataset_id", _DATASET_HINT)
     path = Path(dest)

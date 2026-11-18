@@ -4,6 +4,11 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## 0.1.1 (2026-11-18)
+
+- Docstring fixes only (no behaviour change): `easy.export_validations_to_file` and the
+  `handles` module docstring had leftover fragments and wrong indentation.
+
 ## 0.1.0 (2026-11-18)
 
 First public version.

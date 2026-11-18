@@ -1,4 +1,4 @@
-"""Handles for a dataflow and its datasets (, stages 1-3).
+"""Handles for a dataflow and its datasets.
 
 A `Dataflow` or `Dataset` carries the ids a notebook user would otherwise pass by
 hand (dataflow id, dataset id, provider id, the data-lake flag) and resolves
