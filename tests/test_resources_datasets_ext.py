@@ -1,6 +1,7 @@
 """Tests for the hand-written datasets_ext addition (hidden deleteImportTable)."""
 
 import asyncio
+from pathlib import Path
 
 import httpx
 import respx
@@ -149,3 +150,69 @@ def test_async_export_zip_csv_to_file(tmp_path) -> None:
 
     asyncio.run(run())
     assert dest.read_bytes() == b"PK"
+
+
+IMPORT_PATH = "/dataset/v2/importFileData/7"
+
+
+def test_import_big_file_data_empty_body_returns_empty_dict(tmp_path: Path) -> None:
+    f = tmp_path / "a.csv"
+    f.write_text("a|b\n1|2\n")
+    with respx.mock(base_url=BASE_URL) as mock:
+        route = mock.post(IMPORT_PATH).mock(return_value=httpx.Response(200))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            result = client.datasets.import_big_file_data(
+                7, f, dataflow_id=1, delimiter="|", preparation_code="c"
+            )
+
+    assert result == {}
+    params = route.calls.last.request.url.params
+    assert params["dataflowId"] == "1"
+    assert params["delimiter"] == "|"
+    assert params["code"] == "c"
+
+
+def test_import_big_file_data_json_body_still_returned(tmp_path: Path) -> None:
+    f = tmp_path / "a.csv"
+    f.write_text("a\n1\n")
+    body = {"jobId": 5, "pollingUrl": "/x"}
+    with respx.mock(base_url=BASE_URL) as mock:
+        mock.post(IMPORT_PATH).mock(return_value=httpx.Response(200, json=body))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            assert client.datasets.import_big_file_data(7, f) == body
+
+
+def test_import_big_file_data_forwards_timeout(tmp_path: Path) -> None:
+    f = tmp_path / "a.csv"
+    f.write_text("a\n1\n")
+    with respx.mock(base_url=BASE_URL) as mock:
+        route = mock.post(IMPORT_PATH).mock(return_value=httpx.Response(200))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            client.datasets.import_big_file_data(7, f, timeout=900.0)
+    assert route.calls.last.request.extensions["timeout"]["read"] == 900.0
+
+
+def test_import_big_file_data_default_timeout_kept(tmp_path: Path) -> None:
+    f = tmp_path / "a.csv"
+    f.write_text("a\n1\n")
+    with respx.mock(base_url=BASE_URL) as mock:
+        route = mock.post(IMPORT_PATH).mock(return_value=httpx.Response(200))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            client.datasets.import_big_file_data(7, f)
+    assert route.calls.last.request.extensions["timeout"]["read"] == 60.0
+
+
+def test_async_import_big_file_data_empty_body_and_timeout(tmp_path: Path) -> None:
+    f = tmp_path / "a.csv"
+    f.write_text("a\n1\n")
+
+    async def run() -> tuple[dict[str, object], respx.Route]:
+        with respx.mock(base_url=BASE_URL) as mock:
+            route = mock.post(IMPORT_PATH).mock(return_value=httpx.Response(200))
+            async with AsyncReportnetClient(base_url=BASE_URL, token="t") as client:
+                result = await client.datasets.import_big_file_data(7, f, timeout=900.0)
+            return result, route
+
+    result, route = asyncio.run(run())
+    assert result == {}
+    assert route.calls.last.request.extensions["timeout"]["read"] == 900.0

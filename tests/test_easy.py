@@ -475,3 +475,45 @@ def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check):
         respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(json={"tables": []})
         with pytest.warns(RuntimeWarning):
             easy.read_all_records(client, 7, 1, page_size=np.int64(500))
+
+
+@respx.mock
+def test_validation_errors_explicit_lake_skips_detection():
+    flow = respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": False})
+    old = respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*")
+    dl = respx.get(url__regex=rf"{BASE}/validation/listGroupValidationsDL/.*").respond(
+        json={"errors": [_vrow("FC4", "r1")], "totalRecords": 1}
+    )
+    df = easy.validation_errors(easy.connect("k"), 9, 5, data_lake=True)
+    assert df["short_code"].tolist() == ["FC4"]
+    assert dl.called and not old.called and not flow.called
+
+
+@respx.mock
+def test_validation_errors_explicit_relational_skips_detection():
+    flow = respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": True})
+    dl = respx.get(url__regex=rf"{BASE}/validation/listGroupValidationsDL/.*")
+    old = respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*").respond(
+        json={"errors": [_vrow("A", "r1")], "totalRecords": 1}
+    )
+    df = easy.validation_errors(easy.connect("k"), 9, 5, data_lake=False)
+    assert df["short_code"].tolist() == ["A"]
+    assert old.called and not dl.called and not flow.called
+
+
+@respx.mock
+def test_validate_and_wait_passes_data_lake_through(monkeypatch):
+    monkeypatch.setattr(easy.time, "sleep", lambda s: None)
+    old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
+    new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}
+    answers = iter([[old], [new, old]])
+    respx.get(f"{BASE}/notification/findUserNotifications").mock(
+        side_effect=lambda r: httpx.Response(200, json={"userNotifications": next(answers)})
+    )
+    respx.put(f"{BASE}/orchestrator/jobs/addValidationJob/9").respond(200)
+    flow = respx.get(f"{BASE}/dataflow/v1/5").respond(200, content=b"")
+    dl = respx.get(url__regex=rf"{BASE}/validation/listGroupValidationsDL/.*").respond(
+        json={"errors": [_vrow("FC4", "r1")], "totalRecords": 1}
+    )
+    df = easy.validate_and_wait(easy.connect("k"), 9, 5, data_lake=True)
+    assert df["short_code"].tolist() == ["FC4"] and dl.called and not flow.called

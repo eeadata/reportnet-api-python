@@ -289,6 +289,7 @@ def validation_errors(
     level_errors: list[str] | None = None,
     type_entities: list[str] | None = None,
     page_size: int = 100,
+    data_lake: bool | None = None,
 ) -> pd.DataFrame:
     """Failed validations of a dataset, one row per failing rule (what the UI shows).
 
@@ -296,13 +297,15 @@ def validation_errors(
     failing records), rule_id. Picks the data-lake route (`list_group_validations_dl`)
     when the dataflow has `bigData: true`, else `list_group_validations`; the old
     route answers an empty list on a lake dataset even when the UI shows failures.
+    Pass `data_lake=True`/`False` when the caller already knows (it skips the
+    `bigData` lookup, whose empty answer would read as not a lake); `None` detects it.
     An empty frame means no failures, or a validation that has not run yet: this
     does not start one. Needs a credential that may read validations (an ApiKey
     got 403 on the sandbox).
     """
     pd = _pandas()
     _require_id(dataset_id, "dataset_id", _DATASET_HINT)
-    lake = is_data_lake(client, dataflow_id)
+    lake = is_data_lake(client, dataflow_id) if data_lake is None else data_lake
     fetch = (
         client.validation.list_group_validations_dl
         if lake
@@ -391,8 +394,11 @@ def validate_and_wait(
     released: bool = False,
     timeout: float = 600.0,
     poll_interval: float = 3.0,
+    data_lake: bool | None = None,
 ) -> pd.DataFrame:
     """Start a validation, wait until it finishes, return `validation_errors()`.
+
+    `data_lake` is passed to `validation_errors()` (None: detect from `bigData`).
 
     WRITES: replaces the dataset's validation results and takes a dataset lock.
     The completion signal is the user notification the backend creates when a run
@@ -421,7 +427,7 @@ def validate_and_wait(
                 "run has no event of its own)"
             )
         time.sleep(poll_interval)
-    return validation_errors(client, dataset_id, dataflow_id)
+    return validation_errors(client, dataset_id, dataflow_id, data_lake=data_lake)
 
 
 def export_validations(

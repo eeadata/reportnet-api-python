@@ -17,8 +17,11 @@ import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
+import httpx
+
+from .._core import stream_upload_file
 from .._exceptions import NotFoundError
 from ..jobs import (
     JobError,
@@ -230,6 +233,61 @@ def _dataset_file_name(dataset_name: str, mime_type: str) -> str:
 
 
 class DatasetsResource(_GeneratedDatasetsResource):
+    def import_big_file_data(
+        self,
+        dataset_id: int,
+        file: str | os.PathLike[str],
+        dataflow_id: int | None = None,
+        delimiter: str | None = None,
+        fme_job_id: str | None = None,
+        integration_id: int | None = None,
+        job_id: int | None = None,
+        provider_id: int | None = None,
+        replace: bool | None = None,
+        table_schema_id: str | None = None,
+        preparation_code: str | None = None,
+        *,
+        timeout: float | httpx.Timeout | None = None,
+    ) -> dict[str, Any]:
+        """Import file to dataset data (Large files)
+
+        Allowed roles:
+
+        Reporting dataset: LEAD REPORTER, REPORTER WRITE, NATIONAL COORDINATOR
+
+        Data collection: CUSTODIAN, STEWARD
+
+        Test dataset: CUSTODIAN, STEWARD, STEWARD SUPPORT
+
+        Reference dataset: CUSTODIAN, STEWARD
+
+        Design dataset: CUSTODIAN, STEWARD, EDITOR WRITE
+
+        EU dataset: CUSTODIAN, STEWARD
+
+        Overrides the generated method. An empty response body returns `{}` (data lake
+        datasets answer `void`: the import is done inside the request, MasterDataLakes `DatasetControllerImpl:391-422`;
+        other datasets answer a job map), and `timeout` overrides the client's timeout for
+        this call only (a lake import can run for minutes). `preparation_code` is sent as
+        `code`."""
+        params = {
+            "dataflowId": dataflow_id,
+            "delimiter": delimiter,
+            "fmeJobId": fme_job_id,
+            "integrationId": integration_id,
+            "jobId": job_id,
+            "providerId": provider_id,
+            "replace": replace,
+            "tableSchemaId": table_schema_id,
+            "code": preparation_code,
+        }
+        params = {k: v for k, v in params.items() if v is not None}
+        options: dict[str, Any] = {"timeout": timeout} if timeout is not None else {}
+        url = f"/dataset/v2/importFileData/{dataset_id}"
+        with stream_upload_file("file", file) as files:
+            response = self._client.request("POST", url, params=params, files=files, **options)
+        return cast(dict[str, Any], response.json()) if response.content.strip() else {}
+
     def delete_import_table(
         self,
         dataset_id: int,
@@ -550,6 +608,63 @@ class DatasetsResource(_GeneratedDatasetsResource):
 
 
 class AsyncDatasetsResource(_GeneratedAsyncDatasetsResource):
+    async def import_big_file_data(
+        self,
+        dataset_id: int,
+        file: str | os.PathLike[str],
+        dataflow_id: int | None = None,
+        delimiter: str | None = None,
+        fme_job_id: str | None = None,
+        integration_id: int | None = None,
+        job_id: int | None = None,
+        provider_id: int | None = None,
+        replace: bool | None = None,
+        table_schema_id: str | None = None,
+        preparation_code: str | None = None,
+        *,
+        timeout: float | httpx.Timeout | None = None,
+    ) -> dict[str, Any]:
+        """Import file to dataset data (Large files)
+
+        Allowed roles:
+
+        Reporting dataset: LEAD REPORTER, REPORTER WRITE, NATIONAL COORDINATOR
+
+        Data collection: CUSTODIAN, STEWARD
+
+        Test dataset: CUSTODIAN, STEWARD, STEWARD SUPPORT
+
+        Reference dataset: CUSTODIAN, STEWARD
+
+        Design dataset: CUSTODIAN, STEWARD, EDITOR WRITE
+
+        EU dataset: CUSTODIAN, STEWARD
+
+        Overrides the generated method. An empty response body returns `{}` (data lake
+        datasets answer `void`: the import is done inside the request, MasterDataLakes `DatasetControllerImpl:391-422`;
+        other datasets answer a job map), and `timeout` overrides the client's timeout for
+        this call only (a lake import can run for minutes). `preparation_code` is sent as
+        `code`."""
+        params = {
+            "dataflowId": dataflow_id,
+            "delimiter": delimiter,
+            "fmeJobId": fme_job_id,
+            "integrationId": integration_id,
+            "jobId": job_id,
+            "providerId": provider_id,
+            "replace": replace,
+            "tableSchemaId": table_schema_id,
+            "code": preparation_code,
+        }
+        params = {k: v for k, v in params.items() if v is not None}
+        options: dict[str, Any] = {"timeout": timeout} if timeout is not None else {}
+        url = f"/dataset/v2/importFileData/{dataset_id}"
+        with stream_upload_file("file", file) as files:
+            response = await self._client.request(
+                "POST", url, params=params, files=files, **options
+            )
+        return cast(dict[str, Any], response.json()) if response.content.strip() else {}
+
     async def delete_import_table(
         self,
         dataset_id: int,

@@ -598,8 +598,11 @@ Start a validation, wait until it finishes, return `validation_errors()`.
 | `released` | `bool` | no | `False` |  |
 | `timeout` | `float` | no | `600.0` |  |
 | `poll_interval` | `float` | no | `3.0` |  |
+| `data_lake` | `bool \| None` | no | `None` |  |
 
 **Returns:** `pd.DataFrame`
+
+`data_lake` is passed to `validation_errors()` (None: detect from `bigData`).
 
 WRITES: replaces the dataset's validation results and takes a dataset lock.
 The completion signal is the user notification the backend creates when a run
@@ -626,6 +629,7 @@ Failed validations of a dataset, one row per failing rule (what the UI shows).
 | `level_errors` | `list[str] \| None` | no | `None` |  |
 | `type_entities` | `list[str] \| None` | no | `None` |  |
 | `page_size` | `int` | no | `100` |  |
+| `data_lake` | `bool \| None` | no | `None` |  |
 
 **Returns:** `pd.DataFrame`
 
@@ -633,6 +637,8 @@ Columns: short_code, level, entity, table, field, message, records (number of
 failing records), rule_id. Picks the data-lake route (`list_group_validations_dl`)
 when the dataflow has `bigData: true`, else `list_group_validations`; the old
 route answers an empty list on a lake dataset even when the UI shows failures.
+Pass `data_lake=True`/`False` when the caller already knows (it skips the
+`bigData` lookup, whose empty answer would read as not a lake); `None` detects it.
 An empty frame means no failures, or a validation that has not run yet: this
 does not start one. Needs a credential that may read validations (an ApiKey
 got 403 on the sandbox).

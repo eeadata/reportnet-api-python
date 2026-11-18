@@ -1099,6 +1099,7 @@ Import file to dataset data (Large files)
 | `replace` | `bool \| None` | no | `None` | Replace current data |
 | `table_schema_id` | `str \| None` | no | `None` | Table schema id |
 | `preparation_code` | `str \| None` | no | `None` |  |
+| `timeout` | `float \| httpx.Timeout \| None` | no | `None` |  |
 
 **Returns:** `dict[str, Any]`
 
@@ -1113,8 +1114,11 @@ Import file to dataset data (Large files)
 | Design dataset | CUSTODIAN, STEWARD, EDITOR WRITE |
 | EU dataset | CUSTODIAN, STEWARD |
 
-`preparation_code` (sent as `code`; not in the swagger snapshot, read from the
-backend source) selects a preparation dataset instead of the regular one.
+Overrides the generated method. An empty response body returns `{}` (data lake
+datasets answer `void`: the import is done inside the request, MasterDataLakes `DatasetControllerImpl:391-422`;
+other datasets answer a job map), and `timeout` overrides the client's timeout for
+this call only (a lake import can run for minutes). `preparation_code` is sent as
+`code`.
 
 **Live-tested notes:**
 
