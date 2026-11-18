@@ -97,7 +97,7 @@ c = LIGHT
 body, w = lockup(c)
 scale = 2.6
 tx, ty = (1280 - w * scale) / 2, 230
-tag, tw = text_path("Client for the Reportnet 3 REST API", 0, 0, 30)
+tag, tw = text_path("Library for the Reportnet 3 REST API", 0, 0, 30)
 social = (f'<rect width="1280" height="640" fill="{c["bg"]}"/>'
           f'<g transform="translate({tx:.1f} {ty}) scale({scale})">{body}</g>'
           f'<path d="{tag}" fill="{c["muted"]}" transform="translate({(1280 - tw) / 2:.1f} 470)"/>')
