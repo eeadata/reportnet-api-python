@@ -20,10 +20,24 @@ FONT, OUT = Path(sys.argv[1]), Path(sys.argv[2])
 OUT.mkdir(parents=True, exist_ok=True)
 
 # Python's blue (#3776AB) and yellow (#FFD43B); colours only, not the Python logo
-LIGHT = {"ink": "#3776ab", "acc": "#ffd43b", "ghost": "#e4ebf2", "text": "#1e3f66",
-         "api": "#3776ab", "muted": "#5b6876", "bg": "#ffffff"}
-DARK = {"ink": "#5a9fd4", "acc": "#ffd43b", "ghost": "#22364d", "text": "#e9eef4",
-        "api": "#ffd43b", "muted": "#9aa7b4", "bg": "#0d1b2e"}
+LIGHT = {
+    "ink": "#3776ab",
+    "acc": "#ffd43b",
+    "ghost": "#e4ebf2",
+    "text": "#1e3f66",
+    "api": "#3776ab",
+    "muted": "#5b6876",
+    "bg": "#ffffff",
+}
+DARK = {
+    "ink": "#5a9fd4",
+    "acc": "#ffd43b",
+    "ghost": "#22364d",
+    "text": "#e9eef4",
+    "api": "#ffd43b",
+    "muted": "#9aa7b4",
+    "bg": "#0d1b2e",
+}
 
 # 3x5 table: '#' = ink cell, '*' = accent cell, '.' = empty (ghost) cell
 GRID = ["###", "..#", ".*#", "..#", "###"]
@@ -38,8 +52,9 @@ def mark(c: dict, ghosts: bool = True) -> str:
                 continue
             fill = {"#": c["ink"], "*": c["acc"], ".": c["ghost"]}[ch]
             x, y = X0 + k * (CELL + GAP), Y0 + r * (CELL + GAP)
-            out.append(f'<rect x="{x:g}" y="{y:g}" width="{CELL}" height="{CELL}" '
-                       f'rx="2" fill="{fill}"/>')
+            out.append(
+                f'<rect x="{x:g}" y="{y:g}" width="{CELL}" height="{CELL}" rx="2" fill="{fill}"/>'
+            )
     return "".join(out)
 
 
@@ -63,8 +78,10 @@ def text_path(s: str, x: float, baseline: float, size: float) -> tuple[str, floa
 
 
 def svg(w: float, h: float, body: str) -> str:
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:g} {h:g}" '
-            f'width="{w:g}" height="{h:g}" role="img" aria-label="reportnet-api">{body}</svg>\n')
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w:g} {h:g}" '
+        f'width="{w:g}" height="{h:g}" role="img" aria-label="reportnet-api">{body}</svg>\n'
+    )
 
 
 def lockup(c: dict, size: float = 36) -> tuple[str, float]:
@@ -72,8 +89,10 @@ def lockup(c: dict, size: float = 36) -> tuple[str, float]:
     d2, w2 = text_path("-api", 78 + w1, 36, size)
     d3, _ = text_path("for Python", 80, 59, 14)
     width = 78 + w1 + w2 + 4
-    body = (f'{mark(c)}<path d="{d1}" fill="{c["text"]}"/><path d="{d2}" fill="{c["api"]}"/>'
-            f'<path d="{d3}" fill="{c["muted"]}"/>')
+    body = (
+        f'{mark(c)}<path d="{d1}" fill="{c["text"]}"/><path d="{d2}" fill="{c["api"]}"/>'
+        f'<path d="{d3}" fill="{c["muted"]}"/>'
+    )
     return body, width
 
 
@@ -98,9 +117,11 @@ body, w = lockup(c)
 scale = 2.6
 tx, ty = (1280 - w * scale) / 2, 230
 tag, tw = text_path("Library for the Reportnet 3 REST API", 0, 0, 30)
-social = (f'<rect width="1280" height="640" fill="{c["bg"]}"/>'
-          f'<g transform="translate({tx:.1f} {ty}) scale({scale})">{body}</g>'
-          f'<path d="{tag}" fill="{c["muted"]}" transform="translate({(1280 - tw) / 2:.1f} 470)"/>')
+social = (
+    f'<rect width="1280" height="640" fill="{c["bg"]}"/>'
+    f'<g transform="translate({tx:.1f} {ty}) scale({scale})">{body}</g>'
+    f'<path d="{tag}" fill="{c["muted"]}" transform="translate({(1280 - tw) / 2:.1f} 470)"/>'
+)
 write("social-preview.svg", svg(1280, 640, social))
 
 # PNG exports
