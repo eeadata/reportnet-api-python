@@ -6,7 +6,7 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
 ## 0.1.1 (2026-11-18)
 
-- Docstring fixes only (no behaviour change): `easy.export_validations_to_file` and the
+- Docstring fixes only (no behaviour change): `easy.export_validations` and the
   `handles` module docstring had leftover fragments and wrong indentation.
 
 ## 0.1.0 (2026-11-18)
