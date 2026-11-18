@@ -2,8 +2,12 @@
 
 # Reportnet API Python client
 
-A Python client for the [EEA Reportnet 3](https://reportnet.europa.eu/) REST API: typed,
+A Python library for the [EEA Reportnet 3](https://reportnet.europa.eu/) REST API: typed,
 sync and async, with notebook helpers that return pandas DataFrames.
+
+> **Not an official EEA product.** An independent set of utilities for accessing the
+> Reportnet 3 API, not developed or supported by the Reportnet team. For help with
+> Reportnet itself, use the Reportnet helpdesk.
 
 ## Start here
 

@@ -7,9 +7,13 @@
 
 # reportnet-api-python
 
-Python client library for the [EEA Reportnet 3](https://reportnet.europa.eu/)
+Python library for the [EEA Reportnet 3](https://reportnet.europa.eu/)
 REST API. Typed, resource-namespaced, sync and async, built on `httpx` and
 Pydantic v2. The function reference is in `docs/reference/`.
+
+> **Not an official EEA product.** An independent set of utilities for accessing the
+> Reportnet 3 API, not developed or supported by the Reportnet team. For help with
+> Reportnet itself, use the Reportnet helpdesk.
 
 [![CI](https://github.com/eeadata/reportnet-api-python/actions/workflows/ci.yml/badge.svg)](https://github.com/eeadata/reportnet-api-python/actions/workflows/ci.yml)
 [![Open the demo in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/eeadata/reportnet-api-python/blob/main/examples/try_it_demo.ipynb)

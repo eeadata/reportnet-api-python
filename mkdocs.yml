@@ -1,5 +1,5 @@
 site_name: Reportnet API Python client
-site_description: Python client for the Reportnet 3 REST API, with pandas helpers for notebooks.
+site_description: Python library for the Reportnet 3 REST API, with pandas helpers for notebooks.
 repo_url: https://github.com/eeadata/reportnet-api-python
 edit_uri: edit/main/docs/
 theme:

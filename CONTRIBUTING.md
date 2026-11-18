@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. This is a small client library, so the process is light.
+Thanks for helping. This is a small library, so the process is light.
 
 ## Set up
 
