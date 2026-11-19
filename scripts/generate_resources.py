@@ -444,7 +444,6 @@ def render_body(op: Operation, *, is_async: bool) -> str:
         lines.append(
             f'        {await_kw}self._client.download("{op.method}", url, params=params, dest=dest)'
         )
-        lines.append("        return None")
         return "\n".join(lines)
 
     call_kwargs = ["params=params"]
@@ -485,7 +484,7 @@ def render_body(op: Operation, *, is_async: bool) -> str:
         )
 
     if op.return_kind == "none":
-        lines.append("        return None")
+        pass  # the method simply ends (no trailing `return None`)
     elif op.return_kind == "raw":
         lines.append("        return response")
     elif op.return_kind == "model":
