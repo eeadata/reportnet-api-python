@@ -54,7 +54,7 @@ class DataLakeError(RuntimeError):
     """A plain table read was refused: the dataset is in a data-lake dataflow."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Dataset:
     """One dataset: ids, kind and the country it belongs to (if any)."""
 
@@ -148,7 +148,7 @@ class Dataset:
         return easy.export_validations(self.client, self.id, dest, **kwargs)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Dataflow:
     """One dataflow. `big_data` is True for a data-lake dataflow."""
 

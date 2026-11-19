@@ -121,7 +121,7 @@ def _retry_after_seconds(response: httpx.Response) -> float | None:
     return seconds if math.isfinite(seconds) else None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RetryPolicy:
     """Opt-in retries for transient failures; pass as `retry=` to a client.
 

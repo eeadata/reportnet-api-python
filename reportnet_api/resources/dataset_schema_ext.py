@@ -102,7 +102,7 @@ def _zip_digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _Shape:
     """What a dataset schema's export files hold, as counts (the import's completion test).
 
