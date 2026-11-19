@@ -48,7 +48,16 @@ if TYPE_CHECKING:
 
 
 class JobError(Exception):
-    """An async job failed, was refused or cancelled, or did not finish in time."""
+    """An async job failed, was refused or cancelled, or did not finish in time.
+
+    `status` and `info` are the job's final status and its `info` text when the
+    job itself reported the failure (`FAILED`, `CANCELED`, ...), else None.
+    """
+
+    def __init__(self, message: str, *, status: str | None = None, info: str | None = None):
+        super().__init__(message)
+        self.status = status
+        self.info = info
 
 
 # Every JobStatusEnum value of both backend branches (see module docstring).
@@ -78,7 +87,11 @@ def _check(answer: dict[str, Any]) -> bool:
         return True
     if status in JOB_FAILED_STATUSES:
         info = answer.get("info")
-        raise JobError(f"Job {status}: {info}" if info else f"Job {status}")
+        raise JobError(
+            f"Job {status}: {info}" if info else f"Job {status}",
+            status=str(status),
+            info=str(info) if info else None,
+        )
     if status not in JOB_RUNNING_STATUSES:
         warnings.warn(
             f"Unrecognised job status {status!r}; treating it as still running",

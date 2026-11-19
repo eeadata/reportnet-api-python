@@ -9,7 +9,9 @@ returning a DataFrame is called.
 
 from __future__ import annotations
 
+import csv
 import getpass
+import io
 import json
 import numbers
 import operator
@@ -18,6 +20,7 @@ import re
 import tempfile
 import time
 import warnings
+import zipfile
 from collections.abc import Callable, Iterable
 from decimal import Decimal
 from pathlib import Path
@@ -897,6 +900,14 @@ def export_to_file(
     ZIP. Raises `reportnet_api.jobs.JobError` if the job fails or `timeout`
     seconds pass. Same ETL-access caveat as `read_tables()`. `progress=True` shows
     one updating status line; a callable gets event dicts (see `wait_for_job()`).
+
+    Newer Reportnet versions refuse the CSV and Parquet ZIP exports for a dataflow
+    that is not a data lake (live on the sandbox, 2026-11-18). For CSV this then
+    falls back to the older JSON export and writes the ZIP itself: one
+    ``<table>.csv`` per table, comma-separated UTF-8, fields in schema order (then
+    `country_code` when the records carry one), no record id column. That export is
+    read into memory whole. Parquet has no such
+    fallback; the `JobError` says so.
     """
     _require_id(dataset_id, "dataset_id", _DATASET_HINT)
     _require_id(dataflow_id, "dataflow_id", _DATAFLOW_HINT)
@@ -908,17 +919,80 @@ def export_to_file(
         else client.datasets.export_zip_parquet_to_file
     )
     try:
-        export(
+        try:
+            export(
+                dataset_id,
+                dataflow_id=dataflow_id,
+                dest=dest,
+                table_schema_id=table_schema_id,
+                timeout=timeout,
+                progress=progress,
+            )
+        except JobError as err:
+            if err.status != "FAILED" or is_data_lake(client, dataflow_id):
+                raise
+            if file_format == "parquet":
+                raise JobError(
+                    f"{err} Parquet export needs a data-lake dataflow here; use "
+                    "file_format='csv' (converted from the JSON export) or read_tables().",
+                    status=err.status,
+                    info=err.info,
+                ) from err
+            _export_csv_zip_from_json(
+                client, dataset_id, dataflow_id, Path(dest), table_schema_id, timeout, progress
+            )
+    except ForbiddenError as err:
+        raise _hinted(err, _FORBIDDEN_HINT) from err
+    return Path(dest)
+
+
+def _export_csv_zip_from_json(
+    client: ReportnetClient,
+    dataset_id: int,
+    dataflow_id: int,
+    dest: Path,
+    table_schema_id: str | None,
+    timeout: float,
+    progress: Progress,
+) -> None:
+    """The v3 job export (a ZIP holding one ETL JSON file), rewritten as a ZIP of CSVs."""
+    with tempfile.TemporaryDirectory() as tmp:
+        raw = Path(tmp) / "etl.zip"
+        client.datasets.export_dataset_with_job_to_file(
             dataset_id,
             dataflow_id=dataflow_id,
-            dest=dest,
+            dest=raw,
             table_schema_id=table_schema_id,
             timeout=timeout,
             progress=progress,
         )
-    except ForbiddenError as err:
-        raise _hinted(err, _FORBIDDEN_HINT) from err
-    return Path(dest)
+        with zipfile.ZipFile(raw) as z:
+            names = [n for n in z.namelist() if n.endswith(".json")]
+            if len(names) != 1:
+                raise JobError(f"Expected one JSON file in the export, got {z.namelist()}")
+            payload = json.loads(z.read(names[0]))
+    try:
+        field_order = _schema_field_types(client, dataset_id)
+    except ReportnetAPIError:
+        field_order = {}  # columns then follow the records
+    part = dest.with_name(dest.name + ".part")
+    try:
+        with zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED) as out:
+            for table in payload.get("tables") or []:
+                name = str(table.get("tableName") or "table")
+                rows = _records_to_rows(table.get("records") or [])
+                columns = list(field_order.get(name, {}))
+                for row in rows:
+                    columns += [k for k in row if k not in columns]
+                buf = io.StringIO()
+                writer = csv.writer(buf, lineterminator="\n")
+                writer.writerow(columns)
+                for row in rows:
+                    writer.writerow(["" if row.get(c) is None else row[c] for c in columns])
+                out.writestr(f"{name}.csv", buf.getvalue().encode("utf-8"))
+        part.replace(dest)
+    finally:
+        part.unlink(missing_ok=True)
 
 
 def export_table(

@@ -230,6 +230,14 @@ ZIP. Raises `reportnet_api.jobs.JobError` if the job fails or `timeout`
 seconds pass. Same ETL-access caveat as `read_tables()`. `progress=True` shows
 one updating status line; a callable gets event dicts (see `wait_for_job()`).
 
+Newer Reportnet versions refuse the CSV and Parquet ZIP exports for a dataflow
+that is not a data lake (live on the sandbox, 2026-11-18). For CSV this then
+falls back to the older JSON export and writes the ZIP itself: one
+``<table>.csv`` per table, comma-separated UTF-8, fields in schema order (then
+`country_code` when the records carry one), no record id column. That export is
+read into memory whole. Parquet has no such
+fallback; the `JobError` says so.
+
 **Live-tested notes:**
 
 - Live-checked with an ApiKey for CSV and Parquet; a Bearer Custodian/Steward credential got 403 on the v4 export.

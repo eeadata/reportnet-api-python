@@ -4,6 +4,14 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## 0.1.2 (2026-11-19)
+
+- `easy.export_to_file` (and `Dataset.export`) work again on dataflows that are not a
+  data lake. Newer Reportnet versions refuse the CSV and Parquet ZIP exports there; CSV
+  now falls back to the older JSON export and writes the same ZIP of per-table CSVs.
+  Parquet on such a dataflow raises a `JobError` that says so.
+- `JobError` has `status` and `info` attributes when the job itself reported the failure.
+
 ## 0.1.1 (2026-11-18)
 
 - Docstring fixes only (no behaviour change): `easy.export_validations` and the
