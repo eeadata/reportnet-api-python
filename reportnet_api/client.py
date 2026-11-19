@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import time
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -13,6 +12,7 @@ from ._core import (
     DEFAULT_TIMEOUT,
     RequestCore,
     RetryPolicy,
+    atomic_destination,
     ensure_same_origin,
     request_is_replayable,
     warn_if_insecure,
@@ -101,7 +101,7 @@ class ReportnetClient:
             if not response.is_success:
                 response.read()
                 self._core.handle_response(response)
-            with Path(dest).open("wb") as fh:
+            with atomic_destination(dest) as part, part.open("wb") as fh:
                 for chunk in response.iter_bytes():
                     fh.write(chunk)
 

@@ -4,6 +4,7 @@ import ipaddress
 import math
 import os
 import sys
+import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -212,6 +213,22 @@ class RequestCore:
         if error is not None:
             raise error
         return response
+
+
+@contextmanager
+def atomic_destination(dest: str | os.PathLike[str]) -> Iterator[Path]:
+    """Yield a unique temporary path next to `dest`; move it onto `dest` only on success.
+
+    A failed or interrupted write leaves an existing `dest` untouched and no
+    leftover file. The random suffix keeps concurrent writers apart.
+    """
+    final = Path(dest)
+    part = final.with_name(f"{final.name}.{uuid.uuid4().hex[:8]}.part")
+    try:
+        yield part
+        part.replace(final)
+    finally:
+        part.unlink(missing_ok=True)
 
 
 @contextmanager

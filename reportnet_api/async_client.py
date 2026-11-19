@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -13,6 +12,7 @@ from ._core import (
     DEFAULT_TIMEOUT,
     RequestCore,
     RetryPolicy,
+    atomic_destination,
     ensure_same_origin,
     request_is_replayable,
     warn_if_insecure,
@@ -100,7 +100,7 @@ class AsyncReportnetClient:
             if not response.is_success:
                 await response.aread()
                 self._core.handle_response(response)
-            with Path(dest).open("wb") as fh:
+            with atomic_destination(dest) as part, part.open("wb") as fh:
                 async for chunk in response.aiter_bytes():
                     fh.write(chunk)
 
