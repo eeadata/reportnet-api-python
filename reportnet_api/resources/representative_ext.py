@@ -18,6 +18,7 @@ branch, so only such a user's login token (Bearer) passes; an ApiKey gets 403.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from .._core import ACCEPT_ANY
@@ -57,11 +58,10 @@ def _upload(file: str | os.PathLike[str]) -> dict[str, tuple[str, bytes, str]]:
     backend silently ignores the email; this includes Reportnet's own import
     result CSV, which has a third `Imported` column). Raises `ValueError`.
     """
-    name = os.path.basename(os.fspath(file))
+    name = Path(file).name
     if not name.lower().endswith(".csv"):
         raise ValueError(f"The lead reporters file must be a .csv file: {name!r}")
-    with open(file, "rb") as fh:
-        text = fh.read().decode("utf-8-sig")
+    text = Path(file).read_bytes().decode("utf-8-sig")
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = [line for line in normalized.split("\n") if line.strip()]
     if not lines or lines[0].split(",")[0].strip().strip('"').casefold() != "representing":
@@ -70,7 +70,7 @@ def _upload(file: str | os.PathLike[str]) -> dict[str, tuple[str, bytes, str]]:
             "(Reportnet discards the first line whatever it holds)"
         )
     for number, line in enumerate(lines[1:], start=2):
-        if len(line.split(",")) != 2:
+        if len(line.split(",")) != _LEAD_REPORTER_COLUMNS:
             raise ValueError(
                 f"{name}: data line {number} must have exactly two comma-separated values "
                 "(provider code and email; Reportnet does not read quotes, and a result CSV with "
@@ -100,6 +100,7 @@ def _check_representative(
 
 
 _EXPORT_PATH = "/representative/export/{}"
+_LEAD_REPORTER_COLUMNS = 2  # Representing,Email
 _IMPORT_PATH = "/representative/import/{}/group/{}"
 _VALIDATE_PATH = "/representative/validateLeadReporters/dataflow/{}"
 _CREATE_LEAD_PATH = "/representative/{}/leadReporter/dataflow/{}"

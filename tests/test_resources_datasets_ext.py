@@ -16,9 +16,8 @@ def test_delete_import_table() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.delete(PATH).mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.delete_import_table(7, "abc123", dataflow_id=1)
+            client.datasets.delete_import_table(7, "abc123", dataflow_id=1)
 
-    assert result is None
     request = route.calls.last.request
     assert request.url.params["dataflowId"] == "1"
     assert "providerId" not in request.url.params
@@ -29,7 +28,7 @@ def test_async_delete_import_table() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
             route = mock.delete(PATH).mock(return_value=httpx.Response(200))
             async with AsyncReportnetClient(base_url=BASE_URL, token="t") as client:
-                assert await client.datasets.delete_import_table(7, "abc123") is None
+                await client.datasets.delete_import_table(7, "abc123")
             return route
 
     assert asyncio.run(run()).called
@@ -41,7 +40,7 @@ def test_update_dataset_name() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            assert client.datasets.update_dataset_name(44266, "Codelist (2)") is None
+            client.datasets.update_dataset_name(44266, "Codelist (2)")
 
     params = route.calls.last.request.url.params
     assert params["datasetId"] == "44266"
@@ -61,7 +60,7 @@ def test_async_update_dataset_name() -> None:
     assert asyncio.run(run()).calls.last.request.url.params["datasetName"] == "Reporting data"
 
 
-def test_export_zip_csv_to_file_polls_then_downloads(tmp_path) -> None:
+def test_export_zip_csv_to_file_polls_then_downloads(tmp_path: Path) -> None:
     import pytest
 
     from reportnet_api.resources.datasets_ext import ExportJobError
@@ -108,7 +107,7 @@ def test_export_zip_csv_to_file_polls_then_downloads(tmp_path) -> None:
             client.datasets.export_zip_csv_to_file(1, dataflow_id=2, dest=dest, poll_interval=0)
 
 
-def test_export_zip_csv_to_file_times_out(tmp_path) -> None:
+def test_export_zip_csv_to_file_times_out(tmp_path: Path) -> None:
     import pytest
 
     from reportnet_api.resources.datasets_ext import ExportJobError
@@ -128,7 +127,7 @@ def test_export_zip_csv_to_file_times_out(tmp_path) -> None:
             )
 
 
-def test_async_export_zip_csv_to_file(tmp_path) -> None:
+def test_async_export_zip_csv_to_file(tmp_path: Path) -> None:
     poll = "/orchestrator/jobs/pollForJobStatus/9"
     dest = tmp_path / "out.zip"
 

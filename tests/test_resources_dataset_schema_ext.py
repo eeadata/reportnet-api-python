@@ -5,6 +5,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -172,7 +173,7 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     return now
 
 
-def _wait(client: ReportnetClient, upload: Path, **kwargs: float) -> list[dict]:
+def _wait(client: ReportnetClient, upload: Path, **kwargs: float) -> list[dict[str, Any]]:
     return client.dataset_schema.import_dataflow_schemas_zip_and_wait(
         5, upload, **{"poll_interval": 5, **kwargs}
     )
@@ -210,7 +211,7 @@ def test_import_and_wait_waits_for_datasets_then_stable_export(
 def test_import_and_wait_needs_a_schema_in_the_zip(tmp_path: Path) -> None:
     upload = _schema_zip(tmp_path / "s.zip", [])
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
-        with pytest.raises(ValueError, match="no .schema"):
+        with pytest.raises(ValueError, match=r"no .schema"):
             _wait(client, upload)
 
 
@@ -325,7 +326,7 @@ def test_import_and_wait_propagates_auth_errors(tmp_path: Path, clock: list[floa
 def test_async_import_and_wait(tmp_path: Path, clock: list[float]) -> None:
     upload = _schema_zip(tmp_path / "s.zip", ["A"])
 
-    async def run() -> tuple[list[dict], respx.Route]:
+    async def run() -> tuple[list[dict[str, Any]], respx.Route]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.get("/dataflow/v1/5").mock(
                 side_effect=[_designs(1), _designs(1), _designs(1, 9), _designs(1, 9)]
@@ -413,7 +414,7 @@ def test_async_import_and_wait_keeps_polling_through_transient_errors(
 ) -> None:
     upload = _schema_zip(tmp_path / "s.zip", ["A"])
 
-    async def run() -> list[dict]:
+    async def run() -> list[dict[str, Any]]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.get("/dataflow/v1/5").mock(
                 side_effect=[

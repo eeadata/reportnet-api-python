@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 import pytest
 import respx
@@ -139,6 +141,8 @@ def test_locked_and_rate_limited_get_hints(status_code: int, fragment: str) -> N
     [
         ({"Retry-After": "7"}, 7.0),
         ({"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}, None),
+        ({"Retry-After": "inf"}, None),
+        ({"Retry-After": "nan"}, None),
         ({}, None),
     ],
 )
@@ -151,9 +155,16 @@ def test_retry_after(headers: dict[str, str], expected: float | None) -> None:
     assert exc_info.value.retry_after == expected
 
 
-def _error(status_code: int, scheme: str = "Bearer", path: str = "/dataset/1", **kw):
+def _error(
+    status_code: int,
+    scheme: str = "Bearer",
+    path: str = "/dataset/1",
+    *,
+    json: object = None,
+    text: str | None = None,
+) -> ReportnetAPIError:
     with respx.mock(base_url=BASE_URL) as mock:
-        mock.get(path).mock(return_value=httpx.Response(status_code, **kw))
+        mock.get(path).mock(return_value=httpx.Response(status_code, json=json, text=text))
         with ReportnetClient(base_url=BASE_URL, token="t", token_scheme=scheme) as client:
             with pytest.raises(ReportnetAPIError) as exc_info:
                 client.request("GET", path)
@@ -226,7 +237,9 @@ def test_html_body_is_not_put_in_message() -> None:
         (500, "Bearer", "/dataset/1", {"text": "x"}, "server-side"),
     ],
 )
-def test_explain(status_code, scheme, path, kwargs, fragment) -> None:
+def test_explain(
+    status_code: int, scheme: str, path: str, kwargs: dict[str, Any], fragment: str
+) -> None:
     text = _error(status_code, scheme, path, **kwargs).explain()
     assert f"HTTP {status_code}" in text
     assert fragment in text

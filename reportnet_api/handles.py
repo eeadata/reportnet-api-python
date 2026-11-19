@@ -25,17 +25,21 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
+_COUNTRY_CODE_LENGTH = 2  # ISO 3166-1 alpha-2, as Reportnet uses
+
+
 def _int_or_none(value: Any) -> int | None:
     """Ints come back from DataFrames as floats with NaN for missing values."""
     try:
-        return None if value is None or value != value else int(value)
+        return None if value is None or value != value else int(value)  # noqa: PLR0124 - NaN
     except (TypeError, ValueError):
         return None
 
 
 def _as_id(key: object) -> int | None:
     """An integer key (numpy integers included; bool is not an id), else None."""
-    if isinstance(key, numbers.Integral) and not isinstance(key, bool):
+    # mypy thinks no bool is Integral; at runtime isinstance(True, numbers.Integral) is True.
+    if isinstance(key, numbers.Integral) and not isinstance(key, bool):  # type: ignore[unreachable]
         return int(key)
     return None
 
@@ -197,7 +201,7 @@ class Dataflow:
             k = str(key).strip().lower()
             if not k:
                 raise ValueError("The dataset key is empty: give an id, a country code or a name")
-            if codes is None and len(k) <= 2:
+            if codes is None and len(k) <= _COUNTRY_CODE_LENGTH:
                 # Looks like a country code, which cannot be told from a name fragment.
                 raise LookupError(
                     f"Cannot resolve {key!r} in dataflow {self.id}: provider codes could not "
@@ -320,7 +324,7 @@ def find_dataflow(client: ReportnetClient, query: int | str) -> Dataflow:
     return Dataflow(
         id=flow_id,
         name=str(row["name"]),
-        status=None if status is None or status != status else str(status),
+        status=None if status is None or status != status else str(status),  # noqa: PLR0124 - NaN
         big_data=easy.is_data_lake(client, flow_id),
         client=client,
     )

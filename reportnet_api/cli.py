@@ -24,6 +24,7 @@ import os
 import sys
 import tempfile
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any, TextIO
 
 import httpx
@@ -165,15 +166,17 @@ def main(argv: Sequence[str] | None = None, out: TextIO | None = None) -> int:
             elif args.command == "read":
                 if args.out:
                     # Write next to the target and rename, so a failure leaves no empty file.
-                    folder = os.path.dirname(os.path.abspath(args.out))
+                    # abspath normalises '..' without touching the disk; Path.absolute() does not.
+                    folder = os.path.dirname(os.path.abspath(args.out))  # noqa: PTH100, PTH120
                     fd, tmp = tempfile.mkstemp(dir=folder, suffix=".part")
                     try:
                         with os.fdopen(fd, "w", newline="", encoding="utf-8") as fh:
                             _read(client, args, fh)
-                        os.chmod(tmp, 0o666 & ~_UMASK)  # mkstemp makes 0600; use the usual mode
-                        os.replace(tmp, args.out)
+                        # mkstemp makes 0600; use the usual mode
+                        Path(tmp).chmod(0o666 & ~_UMASK)
+                        Path(tmp).replace(args.out)
                     except BaseException:
-                        os.unlink(tmp)
+                        Path(tmp).unlink()
                         raise
                 else:
                     _read(client, args, out)

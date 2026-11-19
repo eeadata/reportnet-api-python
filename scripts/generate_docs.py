@@ -30,7 +30,8 @@ sys.path.insert(0, str(REPO_ROOT))
 
 def _load_script(name: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, SCRIPTS_DIR / f"{name}.py")
-    assert spec is not None and spec.loader is not None
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load scripts/{name}.py")
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module  # dataclasses resolve annotations via sys.modules
     spec.loader.exec_module(module)
@@ -366,7 +367,7 @@ def build_pages() -> tuple[dict[str, str], dict[str, list[MethodDoc]]]:
             ):
                 continue
             prop = isinstance(member, property)
-            func = member.fget if prop else member
+            func = member.fget if isinstance(member, property) else member
             d = build_method_doc(
                 f"{cls.__name__}.{n}",
                 func,
@@ -437,8 +438,11 @@ Every resource method also exists on `AsyncReportnetClient`, called with `await`
 """
 
 
+_SUMMARY_WIDTH = 110  # index entries longer than this are cut with "..."
+
+
 def render_index(docs_by_page: dict[str, list[MethodDoc]]) -> str:
-    titles = {p: t for p, t in RESOURCE_PAGES} | {p: t for p, _m, t in MODULE_PAGES}
+    titles = dict(RESOURCE_PAGES) | {p: t for p, _m, t in MODULE_PAGES}
     titles["handles"] = HANDLES_TITLE
     lines = [INDEX_INTRO.rstrip("\n"), ""]
     order = [p for p, _ in RESOURCE_PAGES] + [p for p, _m, _t in MODULE_PAGES] + ["handles"]
@@ -446,7 +450,11 @@ def render_index(docs_by_page: dict[str, list[MethodDoc]]) -> str:
         docs = docs_by_page[page]
         lines += [f"### [{titles[page]}]({page}.md)", ""]
         for d in docs:
-            summary = d.summary if len(d.summary) <= 110 else d.summary[:107].rstrip() + "..."
+            summary = (
+                d.summary
+                if len(d.summary) <= _SUMMARY_WIDTH
+                else d.summary[: _SUMMARY_WIDTH - 3].rstrip() + "..."
+            )
             anchor = d.name.lower().replace(".", "")
             lines.append(f"- [`{d.name}`]({page}.md#{anchor}): {esc(summary)}")
         lines.append("")

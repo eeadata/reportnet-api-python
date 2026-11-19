@@ -15,7 +15,7 @@ def test_set_updatable_sends_lowercase_bool() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.put("/referenceDataset/7").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as c:
-            assert c.reference_dataset.set_updatable(7, False) is None
+            c.reference_dataset.set_updatable(7, False)
             assert route.calls.last.request.url.params["updatable"] == "false"
             c.reference_dataset.set_updatable(7, True)
             assert route.calls.last.request.url.params["updatable"] == "true"
@@ -53,7 +53,7 @@ def test_async_set_updatable() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
             route = mock.put("/referenceDataset/9").mock(return_value=httpx.Response(200))
             async with AsyncReportnetClient(base_url=BASE_URL, token="t") as c:
-                assert await c.reference_dataset.set_updatable(9, True) is None
+                await c.reference_dataset.set_updatable(9, True)
                 assert request_param(route) == "true"
                 await c.reference_dataset.set_updatable(9, False)
                 assert request_param(route) == "false"

@@ -33,11 +33,39 @@ jobs:
       - name: Lint (ruff)
         run: uv run ruff check .
 
-      - name: Type check (mypy)
-        run: uv run mypy reportnet_api
+      - name: Format (ruff)
+        run: uv run ruff format --check .
 
-      - name: Test (pytest)
+      - name: Type check (mypy, strict; package, tests, scripts, tools)
+        run: uv run mypy
+
+      - name: Test (pytest; warnings are errors, no network)
         run: uv run pytest
+
+  generated:
+    # Generated code must match its generator and spec exactly.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (exactly as locked)
+        run: uv sync --all-groups --locked
+
+      - name: Regenerate models, resources and reference docs
+        run: |
+          scripts/regen_models.sh
+          scripts/regen_resources.sh
+          scripts/regen_docs.sh
+
+      - name: Fail if anything changed
+        run: git diff --exit-code
 
   package:
     runs-on: ubuntu-latest

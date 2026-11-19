@@ -9,7 +9,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
-from types import MappingProxyType
+from pathlib import Path
+from types import FrameType, MappingProxyType
 from typing import Any, BinaryIO
 
 import httpx
@@ -39,11 +40,15 @@ ACCEPT_ANY: Mapping[str, str] = MappingProxyType({"Accept": "*/*"})
 
 def caller_stacklevel() -> int:
     """The `stacklevel` that points a warning at the first frame outside this package."""
-    package_dir = os.path.dirname(os.path.abspath(__file__)) + os.sep
-    level, frame = 1, sys._getframe(1)
-    while frame is not None and os.path.abspath(frame.f_code.co_filename).startswith(package_dir):
+    # os.path on purpose: Path.resolve() follows symlinks, co_filename does not.
+    package_dir = os.path.dirname(os.path.abspath(__file__)) + os.sep  # noqa: PTH100, PTH120
+    level = 1
+    frame: FrameType | None = sys._getframe(1)
+    while frame is not None and os.path.abspath(  # noqa: PTH100 - same reason
+        frame.f_code.co_filename
+    ).startswith(package_dir):
         level += 1
-        frame = frame.f_back  # type: ignore[assignment]
+        frame = frame.f_back
     return level
 
 
@@ -218,5 +223,6 @@ def stream_upload_file(
     httpx reads from the file handle lazily while sending the request, so
     the file is never fully buffered in memory.
     """
-    with open(file, "rb") as fh:
-        yield {field_name: (os.path.basename(str(file)), fh)}
+    path = Path(file)
+    with path.open("rb") as fh:
+        yield {field_name: (path.name, fh)}

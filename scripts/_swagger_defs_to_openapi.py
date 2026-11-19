@@ -9,6 +9,7 @@ public package.
 
 import json
 import sys
+from pathlib import Path
 
 
 def _rewrite_refs(obj: object) -> object:
@@ -28,7 +29,7 @@ def _rewrite_refs(obj: object) -> object:
 
 def main() -> None:
     src, dst = sys.argv[1], sys.argv[2]
-    with open(src) as f:
+    with Path(src).open() as f:
         spec = json.load(f)
 
     schemas = _rewrite_refs(spec.get("definitions", {}))
@@ -38,7 +39,7 @@ def main() -> None:
         "paths": {},
         "components": {"schemas": schemas},
     }
-    with open(dst, "w") as f:
+    with Path(dst).open("w") as f:
         json.dump(doc, f)
 
 

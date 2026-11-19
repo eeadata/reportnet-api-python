@@ -1,4 +1,6 @@
 import warnings
+from collections.abc import Sequence
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -18,11 +20,11 @@ TYPES = {
 }
 
 
-def _frame(**cols):
+def _frame(**cols: Sequence[object]) -> dict[str, pd.DataFrame]:
     return {"T": pd.DataFrame(cols)}
 
 
-def test_live_formats_convert_and_empty_becomes_na():
+def test_live_formats_convert_and_empty_becomes_na() -> None:
     # Value text as read live from a sandbox dataset; '' for empty cells.
     out = easy.apply_schema_dtypes(
         _frame(
@@ -44,14 +46,14 @@ def test_live_formats_convert_and_empty_becomes_na():
     assert out["p"].tolist() == ["", ""]  # geometry untouched
 
 
-def test_boolean_true_false_any_case():
+def test_boolean_true_false_any_case() -> None:
     out = easy.apply_schema_dtypes(_frame(b=["true", "FALSE", ""]), TYPES)["T"]
     assert str(out["b"].dtype) == "boolean"
     assert out["b"].tolist()[:2] == [True, False] and out["b"].isna().tolist()[2]
 
 
 @pytest.mark.parametrize(
-    "col,values",
+    ("col", "values"),
     [
         ("i", ["1", "x"]),
         ("i", ["1.5"]),
@@ -60,14 +62,14 @@ def test_boolean_true_false_any_case():
         ("b", ["yes"]),
     ],
 )
-def test_misfit_column_stays_text_with_warning(col, values):
+def test_misfit_column_stays_text_with_warning(col: str, values: list[str]) -> None:
     frames = _frame(**{col: values})
     with pytest.warns(RuntimeWarning, match=f"column '{col}'"):
         out = easy.apply_schema_dtypes(frames, TYPES)["T"]
     assert out[col].tolist() == values
 
 
-def test_unknown_table_or_column_untouched_and_input_not_mutated():
+def test_unknown_table_or_column_untouched_and_input_not_mutated() -> None:
     frames = {"Other": pd.DataFrame({"x": ["1"]}), "T": pd.DataFrame({"i": ["1"], "zz": ["1"]})}
     with warnings.catch_warnings():
         warnings.simplefilter("error")
@@ -77,12 +79,12 @@ def test_unknown_table_or_column_untouched_and_input_not_mutated():
     assert frames["T"]["i"].tolist() == ["1"]  # original still text
 
 
-def test_read_tables_rejects_unknown_dtypes_value():
+def test_read_tables_rejects_unknown_dtypes_value() -> None:
     with pytest.raises(ValueError, match="dtypes"):
         easy.read_tables(easy.connect("k"), 1, 1, dtypes="bogus")  # type: ignore[arg-type]
 
 
-def _rec(rid, **fields):
+def _rec(rid: str, **fields: str) -> dict[str, Any]:
     return {
         "id_record": rid,
         "countryCode": "",
@@ -90,7 +92,7 @@ def _rec(rid, **fields):
     }
 
 
-def test_read_tables_dtypes_schema_and_default(monkeypatch):
+def test_read_tables_dtypes_schema_and_default(monkeypatch: pytest.MonkeyPatch) -> None:
     import httpx
     import respx
 

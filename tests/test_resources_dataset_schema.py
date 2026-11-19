@@ -98,7 +98,7 @@ def test_import_field_schemas(tmp_path: Path) -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.dataset_schema.import_field_schemas(
+            client.dataset_schema.import_field_schemas(
                 dataset_schema_id="s1", file=src, dataset_id=1, replace=True, table_schema_id="t1"
             )
 
@@ -109,7 +109,6 @@ def test_import_field_schemas(tmp_path: Path) -> None:
     assert request.url.params["tableSchemaId"] == "t1"
     assert b"<schema/>" in request.content
     assert b'filename="schema.xml"' in request.content
-    assert result is None
 
 
 def test_update_manually_editable_by_dataset_id() -> None:
@@ -118,7 +117,7 @@ def test_update_manually_editable_by_dataset_id() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.dataset_schema.update_manually_editable_by_dataset_id(
+            client.dataset_schema.update_manually_editable_by_dataset_id(
                 dataset_id=1, manually_editable=True
             )
 
@@ -126,4 +125,3 @@ def test_update_manually_editable_by_dataset_id() -> None:
     assert request.method == "PUT"
     assert request.url.path == "/dataschema/updateManuallyEditable/1"
     assert request.url.params["manuallyEditable"] == "true"
-    assert result is None

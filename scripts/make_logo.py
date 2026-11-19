@@ -44,7 +44,7 @@ GRID = ["###", "..#", ".*#", "..#", "###"]
 CELL, GAP, X0, Y0 = 9, 3, 15.5, 3.5
 
 
-def mark(c: dict, ghosts: bool = True) -> str:
+def mark(c: dict[str, str], ghosts: bool = True) -> str:
     out = []
     for r, row in enumerate(GRID):
         for k, ch in enumerate(row):
@@ -84,7 +84,7 @@ def svg(w: float, h: float, body: str) -> str:
     )
 
 
-def lockup(c: dict, size: float = 36) -> tuple[str, float]:
+def lockup(c: dict[str, str], size: float = 36) -> tuple[str, float]:
     d1, w1 = text_path("reportnet", 78, 36, size)
     d2, w2 = text_path("-api", 78 + w1, 36, size)
     d3, _ = text_path("for Python", 80, 59, 14)

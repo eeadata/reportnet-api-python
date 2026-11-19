@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import math
 import re
+from http import HTTPStatus
 
 import httpx
 
@@ -59,11 +61,12 @@ class TooManyRequestsError(ReportnetAPIError):
 
     @property
     def retry_after(self) -> float | None:
-        """Seconds from a numeric `Retry-After` header, or None if absent or not a number."""
+        """Seconds from a numeric `Retry-After` header, or None if absent or not a finite number."""
         try:
-            return float(self.response.headers["Retry-After"])
+            seconds = float(self.response.headers["Retry-After"])
         except (KeyError, ValueError):
             return None
+        return seconds if math.isfinite(seconds) else None
 
 
 class ServerError(ReportnetAPIError):
@@ -107,14 +110,14 @@ _TOO_MANY_HINT = (
 
 def _hint(response: httpx.Response) -> str | None:
     """Short tip for 401/403 (tailored to the Authorization scheme used), 423 and 429."""
-    if response.status_code == 423:
+    if response.status_code == HTTPStatus.LOCKED:
         return _LOCKED_HINT
-    if response.status_code == 429:
+    if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
         return _TOO_MANY_HINT
-    if response.status_code not in (401, 403):
+    if response.status_code not in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
         return None
     scheme = response.request.headers.get("Authorization", "").split(" ", 1)[0].lower()
-    if response.status_code == 401:
+    if response.status_code == HTTPStatus.UNAUTHORIZED:
         return _APIKEY_401_HINT if scheme == "apikey" else _BEARER_401_HINT
     return _APIKEY_HINT if scheme == "apikey" else _BEARER_FORBIDDEN_HINT
 
@@ -166,7 +169,9 @@ def _explain(err: ReportnetAPIError) -> list[str]:
     lines = [f"{request.method} {path} failed with HTTP {status}."]
     if reason:
         lines.append(f"The server said: {reason}")
-    if status == 500 and _is_rejected_credential_500(err.response_body):
+    if status == HTTPStatus.INTERNAL_SERVER_ERROR and _is_rejected_credential_500(
+        err.response_body
+    ):
         lines.append(
             "Likely cause: the credential was rejected upstream (a revoked or expired ApiKey "
             "shows up as a 500 like this, even for plain reads), or it was sent with the "
@@ -177,26 +182,28 @@ def _explain(err: ReportnetAPIError) -> list[str]:
             "A Bearer token sent as an ApiKey fails the same way: Bearer tokens are bare "
             'UUIDs here, not JWTs, so connect(token, scheme="Bearer").'
         )
-    elif status == 500 and "accessReferenceEntity" in err.response_body:
+    elif (
+        status == HTTPStatus.INTERNAL_SERVER_ERROR and "accessReferenceEntity" in err.response_body
+    ):
         lines.append(
             "Likely cause: the dataflow id does not exist, or is not visible to this "
             "credential (the gateway reports this as a 500, not a 404)."
         )
         lines.append("Try: check the dataflow id (list_dataflows) and that it is not a dataset id.")
-    elif status == 423:
+    elif status == HTTPStatus.LOCKED:
         lines.append(
             "Likely cause: another operation (often an import job still QUEUED or "
             "IN_PROGRESS) holds a lock on this dataset or dataflow; the server's own text "
             "can be vague."
         )
         lines.append("Try: wait for that job to finish (see wait_for_job), then repeat the call.")
-    elif status == 403 and scheme == "bearer" and "/etl" in path:
+    elif status == HTTPStatus.FORBIDDEN and scheme == "bearer" and "/etl" in path:
         lines.append(
             "Likely cause: the ETL endpoints are gated separately from dataflow roles; a "
             "Bearer user can get 403 here even as Custodian/Steward."
         )
         lines.append("Try: use a dataflow ApiKey for ETL calls, or ask the dataflow admins.")
-    elif status == 403 and scheme == "apikey":
+    elif status == HTTPStatus.FORBIDDEN and scheme == "apikey":
         lines.append(
             "Likely cause: ApiKeys are Reporter-level and work only for the dataflow they "
             "were issued for, so Custodian/Steward-only routes refuse them."
@@ -204,10 +211,10 @@ def _explain(err: ReportnetAPIError) -> list[str]:
         lines.append("Try: use a Bearer token of a user holding that role on this dataflow.")
     elif (hint := _hint(err.response)) is not None:
         lines.append(f"Hint: {hint}.")
-    elif status >= 500:
+    elif status >= HTTPStatus.INTERNAL_SERVER_ERROR:
         lines.append("Likely cause: a server-side failure; the request itself may be fine.")
         lines.append("Try: check the server's message above, then retry later.")
-    elif status == 404:
+    elif status == HTTPStatus.NOT_FOUND:
         lines.append("Likely cause: the id in the request does not exist for this credential.")
         lines.append("Try: check dataflow and dataset ids are not mixed up.")
     elif status in (400, 422):
@@ -222,7 +229,7 @@ def error_for_response(response: httpx.Response) -> ReportnetAPIError | None:
         return None
 
     exc_cls = _STATUS_EXCEPTIONS.get(response.status_code)
-    if exc_cls is None and response.status_code >= 500:
+    if exc_cls is None and response.status_code >= HTTPStatus.INTERNAL_SERVER_ERROR:
         exc_cls = ServerError
     if exc_cls is None:
         exc_cls = ReportnetAPIError

@@ -1,26 +1,34 @@
 """Tests for `progress=`, the `Job` object and Ctrl-C reporting (P10-15). Mocked only."""
 
 import io
+from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
 import respx
 
 from reportnet_api import ReportnetClient, easy
-from reportnet_api.jobs import Job, JobError, ProgressPrinter, progress_event, wait_for_job
+from reportnet_api.jobs import (
+    Job,
+    JobError,
+    ProgressEvent,
+    ProgressPrinter,
+    progress_event,
+    wait_for_job,
+)
 
 BASE_URL = "https://api.reportnet.europa.eu"
 POLL = "/orchestrator/jobs/pollForJobStatus/9"
 URL = POLL + "?datasetId=1&dataflowId=2"
 
 
-def _answers(*statuses: str):
+def _answers(*statuses: str) -> list[httpx.Response]:
     return [httpx.Response(200, json={"status": s}) for s in statuses]
 
 
-def _event(**kw):
-    base = {"kind": "job", "status": "QUEUED", "elapsed": 3.0, "job_id": "9"}
-    return progress_event(**{**base, **kw})
+def _event(*, status: str = "QUEUED") -> ProgressEvent:
+    return progress_event("job", status=status, elapsed=3.0, job_id="9")
 
 
 def test_printer_non_tty_prints_only_on_change() -> None:
@@ -59,13 +67,13 @@ def test_printer_page_and_other_kinds() -> None:
     ]
 
 
-def test_printer_default_stream_is_stdout_not_a_tty(capsys) -> None:
+def test_printer_default_stream_is_stdout_not_a_tty(capsys: pytest.CaptureFixture[str]) -> None:
     ProgressPrinter()(_event())  # pytest capture is not a tty and ipykernel isn't loaded
     assert capsys.readouterr().out == "Job 9: QUEUED (3s)\n"
 
 
-def test_wait_for_job_progress_true_and_callable(capsys) -> None:
-    events: list[dict] = []
+def test_wait_for_job_progress_true_and_callable(capsys: pytest.CaptureFixture[str]) -> None:
+    events: list[dict[str, Any]] = []
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(side_effect=_answers("QUEUED", "IN_PROGRESS", "FINISHED") * 2)
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -82,7 +90,7 @@ def test_wait_for_job_progress_true_and_callable(capsys) -> None:
     assert events[0]["page"] is None
 
 
-def test_wait_for_job_default_is_silent(capsys) -> None:
+def test_wait_for_job_default_is_silent(capsys: pytest.CaptureFixture[str]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(side_effect=_answers("QUEUED", "FINISHED"))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -90,7 +98,7 @@ def test_wait_for_job_default_is_silent(capsys) -> None:
     assert capsys.readouterr() == ("", "")
 
 
-def test_progress_shows_failure_status_then_raises(capsys) -> None:
+def test_progress_shows_failure_status_then_raises(capsys: pytest.CaptureFixture[str]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": "CANCELED"}))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -99,14 +107,16 @@ def test_progress_shows_failure_status_then_raises(capsys) -> None:
     assert capsys.readouterr().out == "Job 9: CANCELED (0s)\n"
 
 
-def _ctrl_c_on_sleep(monkeypatch) -> None:
+def _ctrl_c_on_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     def interrupt(_seconds: float) -> None:
         raise KeyboardInterrupt
 
     monkeypatch.setattr("reportnet_api.jobs.time.sleep", interrupt)
 
 
-def test_ctrl_c_with_progress_reports_job_id_and_reraises(capsys, monkeypatch) -> None:
+def test_ctrl_c_with_progress_reports_job_id_and_reraises(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     _ctrl_c_on_sleep(monkeypatch)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(return_value=_answers("QUEUED")[0])
@@ -118,7 +128,9 @@ def test_ctrl_c_with_progress_reports_job_id_and_reraises(capsys, monkeypatch) -
     assert "keeps running on the server" in err
 
 
-def test_ctrl_c_without_progress_stays_silent(capsys, monkeypatch) -> None:
+def test_ctrl_c_without_progress_stays_silent(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     _ctrl_c_on_sleep(monkeypatch)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(return_value=_answers("QUEUED")[0])
@@ -128,7 +140,7 @@ def test_ctrl_c_without_progress_stays_silent(capsys, monkeypatch) -> None:
     assert capsys.readouterr().err == ""
 
 
-def test_job_status_wait_and_repr(capsys) -> None:
+def test_job_status_wait_and_repr(capsys: pytest.CaptureFixture[str]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get(POLL).mock(side_effect=_answers("QUEUED", "IN_PROGRESS", "FINISHED"))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -144,7 +156,9 @@ def test_job_status_wait_and_repr(capsys) -> None:
     assert capsys.readouterr().out.splitlines()[-1] == "Job 9: FINISHED (0s)"
 
 
-def test_job_wait_ctrl_c_reports_even_without_progress(capsys, monkeypatch) -> None:
+def test_job_wait_ctrl_c_reports_even_without_progress(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     _ctrl_c_on_sleep(monkeypatch)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(return_value=_answers("QUEUED")[0])
@@ -161,8 +175,8 @@ def test_job_without_start_answer_url_raises() -> None:
             Job.from_polling_url(client, {"jobId": 1})
 
 
-def test_read_tables_page_progress(no_schema_check) -> None:
-    events: list[dict] = []
+def test_read_tables_page_progress(no_schema_check: None) -> None:
+    events: list[dict[str, Any]] = []
 
     def page(request: httpx.Request) -> httpx.Response:
         n = int(request.url.params["offset"])  # a 0-based row offset
@@ -179,7 +193,9 @@ def test_read_tables_page_progress(no_schema_check) -> None:
     assert [(e["kind"], e["page"], e["rows"]) for e in events] == [("page", 1, 1), ("page", 2, 2)]
 
 
-def test_easy_import_file_progress(tmp_path, capsys, monkeypatch) -> None:
+def test_easy_import_file_progress(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("reportnet_api.jobs.time.sleep", lambda _s: None)
     csv = tmp_path / "a.csv"
     csv.write_text("x\n1\n")
@@ -201,5 +217,5 @@ def test_easy_import_file_progress(tmp_path, capsys, monkeypatch) -> None:
 
 
 @pytest.fixture
-def no_schema_check(monkeypatch):
+def no_schema_check(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(easy, "_schema_table_names", lambda *a, **k: None)

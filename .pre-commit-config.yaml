@@ -1,0 +1,22 @@
+# Run before each commit: `uvx pre-commit install` once, then it runs on `git commit`.
+# Run on everything by hand: `uvx pre-commit run --all-files`.
+# The hooks call the project's own locked tools through uv, so they match CI exactly.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (strict, whole project)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false

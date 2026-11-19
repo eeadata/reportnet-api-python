@@ -25,6 +25,7 @@ from pathlib import Path
 
 import streamlit as st
 from pydantic import BaseModel
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from reportnet_api import ReportnetAPIError, ReportnetClient
 
@@ -98,15 +99,17 @@ def convert_param(name: str, raw: object, inner: object, required: bool) -> tupl
             if required:
                 raise ValueError("file is required")
             return False, None
+        if not isinstance(raw, UploadedFile):
+            raise TypeError(f"file: expected an uploaded file, got {type(raw).__name__}")
         tmp_path = Path(tempfile.gettempdir()) / raw.name
         tmp_path.write_bytes(raw.getvalue())
         return True, tmp_path
 
     if name == "dest":
-        Path(raw).parent.mkdir(parents=True, exist_ok=True)
+        Path(str(raw)).parent.mkdir(parents=True, exist_ok=True)
         return True, raw
 
-    text = (raw or "").strip()
+    text = str(raw or "").strip()
     if not text:
         if required:
             raise ValueError(f"{name} is required")
@@ -164,10 +167,10 @@ with st.sidebar:
     # ReportnetClient prepends the scheme itself, so the prefix is stripped
     # here to avoid ending up with "Authorization: Bearer Bearer <token>".
     if raw_token.lower().startswith("bearer "):
-        token_scheme = "Bearer"
+        token_scheme = "Bearer"  # noqa: S105 - an auth scheme name, not a secret
         token = raw_token[len("bearer ") :]
     else:
-        token_scheme = "ApiKey"
+        token_scheme = "ApiKey"  # noqa: S105 - an auth scheme name, not a secret
         token = raw_token
     st.caption(f"Detected scheme: **{token_scheme}**")
 
@@ -201,7 +204,7 @@ requires_line = next(
 )
 if requires_line:
     msg = requires_line
-    if token_scheme == "ApiKey":
+    if token_scheme == "ApiKey":  # noqa: S105 - a scheme name, not a secret
         msg += " Your detected scheme is ApiKey, which is Reporter-level and will not satisfy this."
     st.warning(msg)
 
@@ -246,14 +249,14 @@ if st.button("Run", type="primary", disabled=not confirmed):
                 kwargs[name] = value
                 if name == "dest":
                     dest_value = str(value)
-    except (ValueError, Exception) as exc:  # noqa: BLE001 - surface any param error inline
+    except (ValueError, Exception) as exc:  # surface any parameter error inline
         st.error(f"Invalid parameters: {exc}")
     else:
         try:
             result = method(**kwargs)
         except ReportnetAPIError as exc:
             st.error(f"{exc.status_code} {type(exc).__name__} — {exc.response_body}")
-        except Exception as exc:  # noqa: BLE001 - surface any call error inline
+        except Exception as exc:  # surface any call error inline
             st.exception(exc)
         else:
             render_result(result, dest_value)

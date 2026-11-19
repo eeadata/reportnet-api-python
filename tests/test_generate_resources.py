@@ -3,6 +3,7 @@
 import importlib.util
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -29,7 +30,7 @@ def test_accept_for(produces: list[str], expected: str | None) -> None:
     assert gen.accept_for(produces) == expected
 
 
-def _op(produces: list[str]) -> dict:
+def _op(produces: list[str]) -> dict[str, Any]:
     return {
         "operationId": "fooUsingGET",
         "tags": ["Datasets : Dataset Manager"],

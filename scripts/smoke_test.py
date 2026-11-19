@@ -77,7 +77,7 @@ def run_check(check: Check) -> tuple[str, str]:
         return "WARN", f"404 — endpoint reached but nothing found for this id ({e.response_body!r})"
     except ReportnetAPIError as e:
         return "FAIL", f"{e.status_code} {type(e).__name__} — {e.response_body!r}"
-    except Exception as e:  # noqa: BLE001 - smoke test wants to report, not crash
+    except Exception as e:  # a smoke test reports every failure rather than crash
         return "FAIL", f"unexpected {type(e).__name__}: {e}"
     else:
         return "PASS", repr(result)[:120]

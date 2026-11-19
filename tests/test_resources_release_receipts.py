@@ -30,12 +30,11 @@ def test_delete_release_receipt_by_dataflow_id() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.delete("/release-receipts/dataflow/3").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.release_receipts.delete_release_receipt_by_dataflow_id(dataflow_id=3)
+            client.release_receipts.delete_release_receipt_by_dataflow_id(dataflow_id=3)
 
     request = route.calls.last.request
     assert request.method == "DELETE"
     assert request.url.path == "/release-receipts/dataflow/3"
-    assert result is None
 
 
 def test_get_release_receipt_by_dataflow_id() -> None:

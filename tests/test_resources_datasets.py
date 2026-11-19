@@ -37,7 +37,7 @@ def test_convert_iceberg_to_parquet_tables() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.convert_iceberg_to_parquet_tables(
+            client.datasets.convert_iceberg_to_parquet_tables(
                 dataflow_id=2, dataset_id=1, provider_id=3, table_schema_ids=["a", "b"]
             )
 
@@ -46,7 +46,6 @@ def test_convert_iceberg_to_parquet_tables() -> None:
     assert request.url.params["dataflowId"] == "2"
     assert request.url.params["providerId"] == "3"
     assert request.url.params.get_list("tableSchemaIds") == ["a", "b"]
-    assert result is None
 
 
 def test_convert_parquet_to_iceberg_tables() -> None:
@@ -55,37 +54,34 @@ def test_convert_parquet_to_iceberg_tables() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.convert_parquet_to_iceberg_tables(dataflow_id=2, dataset_id=1)
+            client.datasets.convert_parquet_to_iceberg_tables(dataflow_id=2, dataset_id=1)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/convertParquetToIcebergTables/1"
     assert request.url.params["dataflowId"] == "2"
-    assert result is None
 
 
 def test_create_empty_tables_v3() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.post("/dataset/1/createEmptyTablesV3").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.create_empty_tables_v3(dataset_id=1, table_schema_id="t1")
+            client.datasets.create_empty_tables_v3(dataset_id=1, table_schema_id="t1")
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/1/createEmptyTablesV3"
     assert request.url.params["tableSchemaId"] == "t1"
-    assert result is None
 
 
 def test_create_public_files() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.post("/dataset/createPublicFiles").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.create_public_files(dataflow_id=2, provider_id=3)
+            client.datasets.create_public_files(dataflow_id=2, provider_id=3)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/createPublicFiles"
     assert request.url.params["dataflowId"] == "2"
     assert request.url.params["providerId"] == "3"
-    assert result is None
 
 
 def test_delete_attachment() -> None:
@@ -94,13 +90,12 @@ def test_delete_attachment() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.delete_attachment(dataset_id=1, field_id="f1", record_id="r1")
+            client.datasets.delete_attachment(dataset_id=1, field_id="f1", record_id="r1")
 
     request = route.calls.last.request
     assert request.method == "DELETE"
     assert request.url.path == "/dataset/v1/1/field/f1/attachment"
     assert request.url.params["recordId"] == "r1"
-    assert result is None
 
 
 def test_delete_dataset_data() -> None:
@@ -139,7 +134,7 @@ def test_download_imported_file(tmp_path: Path) -> None:
             return_value=httpx.Response(200, content=content)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.download_imported_file(
+            client.datasets.download_imported_file(
                 dataflow_id=2, dataset_id=1, file_name="f.csv", dest=dest
             )
 
@@ -148,7 +143,6 @@ def test_download_imported_file(tmp_path: Path) -> None:
     assert request.url.params["datasetId"] == "1"
     assert request.url.params["fileName"] == "f.csv"
     assert dest.read_bytes() == content
-    assert result is None
 
 
 def test_duplicate_field_value_exists() -> None:
@@ -176,13 +170,12 @@ def test_etl_export_dataset(tmp_path: Path) -> None:
             return_value=httpx.Response(200, content=content)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.etl_export_dataset(dataset_id=1, dest=dest, dataflow_id=2)
+            client.datasets.etl_export_dataset(dataset_id=1, dest=dest, dataflow_id=2)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/v1/1/etlExport"
     assert request.url.params["dataflowId"] == "2"
     assert dest.read_bytes() == content
-    assert result is None
 
 
 def test_etl_export_dataset_v2(tmp_path: Path) -> None:
@@ -194,12 +187,11 @@ def test_etl_export_dataset_v2(tmp_path: Path) -> None:
             return_value=httpx.Response(200, content=content)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.etl_export_dataset_v2(dataset_id=1, dest=dest, dataflow_id=2)
+            client.datasets.etl_export_dataset_v2(dataset_id=1, dest=dest, dataflow_id=2)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/v2/etlExport/1"
     assert dest.read_bytes() == content
-    assert result is None
 
 
 def test_etl_export_dataset_with_job() -> None:
@@ -305,7 +297,7 @@ def test_get_attachment(tmp_path: Path) -> None:
             return_value=httpx.Response(200, content=content)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.get_attachment(
+            client.datasets.get_attachment(
                 dataset_id=1, field_id="f1", dest=dest, dataflow_id=2, record_id="r1"
             )
 
@@ -313,7 +305,6 @@ def test_get_attachment(tmp_path: Path) -> None:
     assert request.url.path == "/dataset/v1/1/field/f1/attachment"
     assert request.url.params["recordId"] == "r1"
     assert dest.read_bytes() == content
-    assert result is None
 
 
 def test_get_available_for_manual_editing_tables() -> None:
@@ -439,12 +430,11 @@ def test_restore_prefilled_tables() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.restore_prefilled_tables(dataset_id=1, table_schema_id="t1")
+            client.datasets.restore_prefilled_tables(dataset_id=1, table_schema_id="t1")
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/restorePrefilledTables/1"
     assert request.url.params["tableSchemaId"] == "t1"
-    assert result is None
 
 
 def test_update_attachment(tmp_path: Path) -> None:
@@ -454,38 +444,33 @@ def test_update_attachment(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.put("/dataset/v1/1/field/f1/attachment").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.update_attachment(
-                dataset_id=1, field_id="f1", file=src, record_id="r1"
-            )
+            client.datasets.update_attachment(dataset_id=1, field_id="f1", file=src, record_id="r1")
 
     request = route.calls.last.request
     assert request.method == "PUT"
     assert request.url.path == "/dataset/v1/1/field/f1/attachment"
     assert request.url.params["recordId"] == "r1"
     assert b'filename="attach.pdf"' in request.content
-    assert result is None
 
 
 def test_update_geometry() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.put("/dataset/1/updateGeometry").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.update_geometry(dataset_id=1)
+            client.datasets.update_geometry(dataset_id=1)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/1/updateGeometry"
-    assert result is None
 
 
 def test_update_geometry_v2() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.put("/dataset/v2/1/updateGeometry").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.datasets.update_geometry_v2(dataset_id=1)
+            client.datasets.update_geometry_v2(dataset_id=1)
 
     request = route.calls.last.request
     assert request.url.path == "/dataset/v2/1/updateGeometry"
-    assert result is None
 
 
 def test_dataflow_id_is_required_keyword_only(tmp_path: Path) -> None:

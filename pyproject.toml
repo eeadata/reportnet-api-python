@@ -67,20 +67,51 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = [
+    "E", "F", "I", "B", "UP", "RUF", "S", "PL", "DTZ", "PTH", "FBT", "PT", "SIM", "C4", "RET",
+]
+# ANN is left out on purpose: mypy strict already enforces annotations.
+ignore = [
+    "PLR0913",  # resource methods mirror the endpoint's parameters
+    "PLC0415",  # pandas is imported lazily so that it stays optional
+    "FBT001",   # boolean parameters are public API; changing them is a breaking change
+    "FBT002",   # same
+    "PT018",    # splitting compound asserts is churn; pytest already shows both sides
+    "SIM117",   # nested `with` blocks read fine; merging them is style only
+    "PLR0911",  # complexity counts: splitting long, linear functions risks behaviour
+    "PLR0912",  #   changes for no correctness gain; revisit case by case
+    "PLR0915",
+]
 
 [tool.ruff.lint.per-file-ignores]
-"reportnet_api/models/generated.py" = ["E501", "UP"]
+"reportnet_api/models/generated.py" = ["ALL"]
 "reportnet_api/resources/*.py" = ["E501"]
+"tests/**" = ["S101", "S105", "S106", "PLR2004", "FBT003"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
-warn_unused_ignores = true
+files = ["reportnet_api", "tests", "scripts", "tools"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+filterwarnings = ["error"]
+xfail_strict = true
 
 [[tool.mypy.overrides]]
 module = ["pandas", "pandas.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# numpy's stubs use Python 3.12 syntax, which python_version 3.11 cannot parse.
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
+
+[[tool.mypy.overrides]]
+# Only scripts/make_logo.py uses these, installed ad hoc with `uv run --with`.
+module = ["cairosvg", "fontTools.*"]
 ignore_missing_imports = true

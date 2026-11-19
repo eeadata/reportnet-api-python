@@ -1,15 +1,20 @@
 """Tests for the Dataflow/Dataset handles (mocked)."""
 
+from collections.abc import Sequence
+from pathlib import Path
+from typing import NoReturn
+
 import pandas as pd
 import pytest
 
-from reportnet_api import ForbiddenError, easy
-from reportnet_api.handles import Dataflow, find_dataflow
+from reportnet_api import ForbiddenError, ReportnetClient, easy
+from reportnet_api.handles import Dataflow, Dataset, find_dataflow
+from tests.helpers import api_error
 
 TOKEN = "SECRET-TOKEN-123"
 
 
-def _datasets(extra=()):
+def _datasets(extra: Sequence[tuple[int, str, str, int | None]] = ()) -> pd.DataFrame:
     rows = [
         (1, "Design", "design", None),
         (2, "Austria reporting", "reporting", 10),
@@ -20,7 +25,7 @@ def _datasets(extra=()):
     return pd.DataFrame(rows, columns=["dataset_id", "name", "kind", "provider_id"])
 
 
-def _providers():
+def _providers() -> pd.DataFrame:
     return pd.DataFrame(
         [(10, "AT", "Austria", 1), (11, "EL", "Greece", 1)],
         columns=["provider_id", "code", "label", "group_id"],
@@ -28,47 +33,49 @@ def _providers():
 
 
 @pytest.fixture
-def flow(monkeypatch):
+def flow(monkeypatch: pytest.MonkeyPatch) -> Dataflow:
     client = easy.connect(TOKEN)
     monkeypatch.setattr(easy, "list_datasets", lambda *a, **k: _datasets())
     monkeypatch.setattr(easy, "list_providers", lambda *a, **k: _providers())
     return Dataflow(id=5, name="Air", status="DRAFT", big_data=False, client=client)
 
 
-def test_dataset_by_id(flow):
+def test_dataset_by_id(flow: Dataflow) -> None:
     assert flow.dataset(4).name == "Greece reporting"
     with pytest.raises(LookupError):
         flow.dataset(99)
 
 
-def test_dataset_by_country_code(flow):
+def test_dataset_by_country_code(flow: Dataflow) -> None:
     ds = flow.dataset("el")
     assert ds.id == 4 and ds.country_code == "EL"
 
 
-def test_code_matching_two_datasets_lists_candidates(flow):
+def test_code_matching_two_datasets_lists_candidates(flow: Dataflow) -> None:
     with pytest.raises(LookupError) as err:
         flow.dataset("AT")
     assert "2" in str(err.value) and "3" in str(err.value)
     assert flow.dataset("AT", kind="test").id == 3
 
 
-def test_exact_name_beats_substring(flow, monkeypatch):
+def test_exact_name_beats_substring(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         easy, "list_datasets", lambda *a, **k: _datasets([(5, "Austria", "reporting", None)])
     )
     assert flow.dataset("austria").id == 5
 
 
-def test_unknown_key_lists_available(flow):
+def test_unknown_key_lists_available(flow: Dataflow) -> None:
     with pytest.raises(LookupError) as err:
         flow.dataset("nothing")
     assert "Greece reporting" in str(err.value) and "AT" in str(err.value)
 
 
-def test_forbidden_providers_fall_back_to_names(flow, monkeypatch):
-    def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+def test_forbidden_providers_fall_back_to_names(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def deny(*a: object, **k: object) -> NoReturn:
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_providers", deny)
     assert flow.dataset("Greece reporting").id == 4
@@ -76,54 +83,56 @@ def test_forbidden_providers_fall_back_to_names(flow, monkeypatch):
         flow.dataset("EL")
 
 
-def test_missing_provider_gives_none_country(flow):
+def test_missing_provider_gives_none_country(flow: Dataflow) -> None:
     assert flow.dataset(1).country_code is None
 
 
-def test_repr_hides_client(flow):
+def test_repr_hides_client(flow: Dataflow) -> None:
     assert "client" not in repr(flow) and TOKEN not in repr(flow)
     assert TOKEN not in repr(flow.dataset(4))
 
 
-def _flows(names=("Air quality 2025", "Air quality archive", "Water")):
+def _flows(
+    names: Sequence[str] = ("Air quality 2025", "Air quality archive", "Water"),
+) -> pd.DataFrame:
     return pd.DataFrame(
         [(5 + i, n, "DRAFT") for i, n in enumerate(names)], columns=["id", "name", "status"]
     )
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch: pytest.MonkeyPatch) -> ReportnetClient:
     monkeypatch.setattr(easy, "list_dataflows", lambda *a, **k: _flows())
     monkeypatch.setattr(easy, "is_data_lake", lambda *a, **k: True)
     return easy.connect(TOKEN)
 
 
-def test_find_by_name_unique(client):
+def test_find_by_name_unique(client: ReportnetClient) -> None:
     flow = find_dataflow(client, "water")
     assert flow.id == 7 and flow.big_data is True and flow.status == "DRAFT"
 
 
-def test_find_ambiguous_lists_candidates(client):
+def test_find_ambiguous_lists_candidates(client: ReportnetClient) -> None:
     with pytest.raises(LookupError) as err:
         find_dataflow(client, "air quality")
     assert "5" in str(err.value) and "6" in str(err.value)
 
 
-def test_find_exact_name_wins(client, monkeypatch):
+def test_find_exact_name_wins(client: ReportnetClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         easy, "list_dataflows", lambda *a, **k: _flows(("Air quality", "Air quality 2025"))
     )
     assert find_dataflow(client, "AIR QUALITY").id == 5
 
 
-def test_find_by_int_id(client, monkeypatch):
+def test_find_by_int_id(client: ReportnetClient, monkeypatch: pytest.MonkeyPatch) -> None:
     assert find_dataflow(client, 7).name == "Water"
 
     # Not in the listing but readable: handle named after the id.
     monkeypatch.setattr(easy, "list_datasets", lambda *a, **k: _datasets())
     assert find_dataflow(client, 99).name == "99"
 
-    def refuse(*a, **k):
+    def refuse(*a: object, **k: object) -> NoReturn:
         raise LookupError("empty")
 
     monkeypatch.setattr(easy, "list_datasets", refuse)
@@ -131,23 +140,28 @@ def test_find_by_int_id(client, monkeypatch):
         find_dataflow(client, 98)
 
 
-def test_find_no_match(client):
+def test_find_no_match(client: ReportnetClient) -> None:
     with pytest.raises(LookupError, match="Water"):
         find_dataflow(client, "zzz")
 
 
-def test_easy_find_dataflow_delegates(client):
+def test_easy_find_dataflow_delegates(client: ReportnetClient) -> None:
     assert easy.find_dataflow(client, "water").id == 7
 
 
-def test_tables_delegates(flow, monkeypatch):
-    seen = []
+def test_tables_delegates(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[int] = []
     frame = pd.DataFrame({"name": ["T"]})
-    monkeypatch.setattr(easy, "list_tables", lambda c, i: seen.append(i) or frame)
+
+    def list_tables(c: object, i: int) -> pd.DataFrame:
+        seen.append(i)
+        return frame
+
+    monkeypatch.setattr(easy, "list_tables", list_tables)
     assert flow.dataset(4).tables is frame and seen == [4]
 
 
-def test_refresh_returns_new_handle(flow, monkeypatch):
+def test_refresh_returns_new_handle(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(easy, "list_dataflows", lambda *a, **k: _flows(("Renamed",)))
     monkeypatch.setattr(easy, "is_data_lake", lambda *a, **k: False)
     new = flow.refresh()
@@ -155,9 +169,11 @@ def test_refresh_returns_new_handle(flow, monkeypatch):
     assert flow.name == "Air"
 
 
-def test_find_by_int_id_survives_unreadable_listing(client, monkeypatch):
-    def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+def test_find_by_int_id_survives_unreadable_listing(
+    client: ReportnetClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def deny(*a: object, **k: object) -> NoReturn:
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_dataflows", deny)
     monkeypatch.setattr(easy, "list_datasets", lambda *a, **k: _datasets())
@@ -166,7 +182,7 @@ def test_find_by_int_id_survives_unreadable_listing(client, monkeypatch):
         find_dataflow(client, "water")
 
 
-def test_country_code_without_dataset_never_falls_back_to_a_name(flow):
+def test_country_code_without_dataset_never_falls_back_to_a_name(flow: Dataflow) -> None:
     # "de" is inside "Design", but DE is a real provider with no dataset here.
     monkey = _providers()
     monkey.loc[len(monkey)] = (12, "DE", "Germany", 1)
@@ -175,16 +191,18 @@ def test_country_code_without_dataset_never_falls_back_to_a_name(flow):
         flow.dataset("DE")
 
 
-def test_short_key_without_readable_providers_is_not_a_substring_guess(flow, monkeypatch):
-    def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+def test_short_key_without_readable_providers_is_not_a_substring_guess(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def deny(*a: object, **k: object) -> NoReturn:
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_providers", deny)
     with pytest.raises(LookupError, match="providers"):
         flow.dataset("DE")
 
 
-def test_numpy_integer_keys(flow, monkeypatch):
+def test_numpy_integer_keys(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
     import numpy as np
 
     assert flow.dataset(np.int64(4)).id == 4
@@ -193,25 +211,33 @@ def test_numpy_integer_keys(flow, monkeypatch):
     assert find_dataflow(flow.client, np.int64(7)).id == 7
 
 
-def test_id_lookup_survives_any_provider_failure(flow, monkeypatch):
+def test_id_lookup_survives_any_provider_failure(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from reportnet_api import ServerError
 
-    def boom(*a, **k):
-        raise ServerError("x", status_code=500, response_body="", request=None, response=None)
+    def boom(*a: object, **k: object) -> NoReturn:
+        raise api_error(ServerError, 500, "", "x")
 
     monkeypatch.setattr(easy, "list_providers", boom)
     ds = flow.dataset(4)
     assert ds.id == 4 and ds.country_code is None
 
 
-def _ds(flow):
+def _ds(flow: Dataflow) -> Dataset:
     return flow.dataset(4)
 
 
-def test_read_passes_ids_and_provider(flow, monkeypatch):
-    seen = {}
+def test_read_passes_ids_and_provider(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
 
-    def fake(client, dataset_id, dataflow_id, table=None, **kw):
+    def fake(
+        client: ReportnetClient,
+        dataset_id: int,
+        dataflow_id: int,
+        table: str | None = None,
+        **kw: object,
+    ) -> str:
         seen.update(ds=dataset_id, flow=dataflow_id, table=table, **kw)
         return "frame"
 
@@ -222,10 +248,12 @@ def test_read_passes_ids_and_provider(flow, monkeypatch):
     assert seen["provider_id"] == 99
 
 
-def test_read_all_passes_ids_and_options(flow, monkeypatch):
-    seen = {}
+def test_read_all_passes_ids_and_options(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
 
-    def fake(client, dataset_id, dataflow_id, **kw):
+    def fake(
+        client: ReportnetClient, dataset_id: int, dataflow_id: int, **kw: object
+    ) -> dict[str, object]:
         seen.update(ds=dataset_id, flow=dataflow_id, **kw)
         return {}
 
@@ -234,7 +262,9 @@ def test_read_all_passes_ids_and_options(flow, monkeypatch):
     assert seen == {"ds": 4, "flow": 5, "provider_id": 11, "page_size": 50}
 
 
-def test_validation_methods_delegate(flow, monkeypatch, tmp_path):
+def test_validation_methods_delegate(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     calls = []
     monkeypatch.setattr(easy, "validation_errors", lambda c, d, f, **k: calls.append(("e", d, f)))
     monkeypatch.setattr(easy, "validation_summary", lambda c, d, f: calls.append(("s", d, f)))
@@ -248,23 +278,31 @@ def test_validation_methods_delegate(flow, monkeypatch, tmp_path):
     assert calls == [("e", 4, 5), ("s", 4, 5), ("x", 4, str(tmp_path / "v.csv"))]
 
 
-def test_find_digit_string_is_an_id_and_empty_is_rejected(client):
+def test_find_digit_string_is_an_id_and_empty_is_rejected(client: ReportnetClient) -> None:
     assert find_dataflow(client, " 7 ").name == "Water"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="query is empty"):
         find_dataflow(client, "  ")
 
 
-def test_export_upload_validate_delegate(flow, monkeypatch, tmp_path):
-    calls = []
-    monkeypatch.setattr(
-        easy, "export_to_file", lambda c, d, f, dest, **k: calls.append(("x", d, f, k)) or dest
-    )
-    monkeypatch.setattr(
-        easy, "import_file", lambda c, d, f, path, **k: calls.append(("u", d, f, k)) or {}
-    )
-    monkeypatch.setattr(
-        easy, "validate_and_wait", lambda c, d, f, **k: calls.append(("v", d, f, k)) or None
-    )
+def test_export_upload_validate_delegate(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, int, int, dict[str, object]]] = []
+
+    def export_to_file(c: object, d: int, f: int, dest: object, **k: object) -> object:
+        calls.append(("x", d, f, k))
+        return dest
+
+    def import_file(c: object, d: int, f: int, path: object, **k: object) -> dict[str, object]:
+        calls.append(("u", d, f, k))
+        return {}
+
+    def validate_and_wait(c: object, d: int, f: int, **k: object) -> None:
+        calls.append(("v", d, f, k))
+
+    monkeypatch.setattr(easy, "export_to_file", export_to_file)
+    monkeypatch.setattr(easy, "import_file", import_file)
+    monkeypatch.setattr(easy, "validate_and_wait", validate_and_wait)
     ds = _ds(flow)
     ds.export(tmp_path / "e.zip", file_format="parquet")
     ds.upload(tmp_path / "T.csv", replace=True)
@@ -276,7 +314,7 @@ def test_export_upload_validate_delegate(flow, monkeypatch, tmp_path):
     ]
 
 
-def test_read_many_stacks_and_skips(flow, monkeypatch):
+def test_read_many_stacks_and_skips(flow: Dataflow, monkeypatch: pytest.MonkeyPatch) -> None:
     from reportnet_api.handles import read_many
 
     data = {
@@ -294,28 +332,42 @@ def test_read_many_stacks_and_skips(flow, monkeypatch):
         assert read_many(sets[1:], "T").empty
 
 
-def test_upload_passes_delimiter(flow, monkeypatch, tmp_path):
+def test_upload_passes_delimiter(
+    flow: Dataflow, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     f = tmp_path / "T.csv"
     f.write_text("a|b\n1|2\n")
-    seen = {}
+    seen: dict[str, object] = {}
 
     class Datasets:
-        def import_file_and_wait(self, dataset_id, path, **kw):
+        def import_file_and_wait(
+            self, dataset_id: int, path: object, **kw: object
+        ) -> dict[str, object]:
             seen.update(kw)
             return {}
 
-    flow.client.datasets = Datasets()
+    checked: dict[str, object] = {}
+
+    def check(
+        client: ReportnetClient, dataset_id: int, path: object, *, delimiter: str | None = None
+    ) -> list[str]:
+        checked["delimiter"] = delimiter
+        return []
+
+    monkeypatch.setattr(easy, "check_import_file", check)  # else it fetches the real schema
+    monkeypatch.setattr(flow.client, "datasets", Datasets())
     _ds(flow).upload(f, delimiter="|")
     assert seen["delimiter"] == "|" and seen["provider_id"] == 11
+    assert checked["delimiter"] == "|"
 
 
-def test_find_by_id_lets_an_authentication_error_through(client, monkeypatch):
+def test_find_by_id_lets_an_authentication_error_through(
+    client: ReportnetClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from reportnet_api import AuthenticationError
 
-    def deny(*a, **k):
-        raise AuthenticationError(
-            "401", status_code=401, response_body="", request=None, response=None
-        )
+    def deny(*a: object, **k: object) -> NoReturn:
+        raise api_error(AuthenticationError, 401, "", "401")
 
     monkeypatch.setattr(easy, "list_dataflows", deny)
     monkeypatch.setattr(easy, "list_datasets", deny)
@@ -323,7 +375,7 @@ def test_find_by_id_lets_an_authentication_error_through(client, monkeypatch):
         find_dataflow(client, 99)
 
 
-def test_reads_refuse_a_data_lake_dataflow(monkeypatch):
+def test_reads_refuse_a_data_lake_dataflow(monkeypatch: pytest.MonkeyPatch) -> None:
     from reportnet_api.handles import DataLakeError, read_many
 
     client = easy.connect(TOKEN)
@@ -335,7 +387,12 @@ def test_reads_refuse_a_data_lake_dataflow(monkeypatch):
     for call in (ds.read, ds.read_all, lambda: read_many([ds], "T")):
         with pytest.raises(DataLakeError, match="export"):
             call()
-    seen = {}
-    monkeypatch.setattr(easy, "read_tables", lambda c, d, f, **k: seen.update(k) or {})
+    seen: dict[str, object] = {}
+
+    def read_tables(c: object, d: int, f: int, **k: object) -> dict[str, object]:
+        seen.update(k)
+        return {}
+
+    monkeypatch.setattr(easy, "read_tables", read_tables)
     ds.read_all(allow_data_lake=True)
     assert seen["provider_id"] == 11

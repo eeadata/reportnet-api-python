@@ -1,6 +1,8 @@
 """Tests for the shared Orchestrator job poller and the *_to_file / wait_for_job helpers."""
 
 import asyncio
+from pathlib import Path
+from typing import Any
 
 import httpx
 import pytest
@@ -29,7 +31,7 @@ def _start(mock: respx.MockRouter, route: str) -> None:
 
 
 @pytest.mark.parametrize(("name", "route"), EXPORTS)
-def test_export_to_file_polls_then_downloads(tmp_path, name, route) -> None:
+def test_export_to_file_polls_then_downloads(tmp_path: Path, name: str, route: str) -> None:
     dest = tmp_path / "out.zip"
     with respx.mock(base_url=BASE_URL) as mock:
         _start(mock, route)
@@ -47,7 +49,7 @@ def test_export_to_file_polls_then_downloads(tmp_path, name, route) -> None:
 
 
 @pytest.mark.parametrize(("name", "route"), EXPORTS)
-def test_async_export_to_file(tmp_path, name, route) -> None:
+def test_async_export_to_file(tmp_path: Path, name: str, route: str) -> None:
     dest = tmp_path / "out.zip"
 
     async def run() -> None:
@@ -65,7 +67,7 @@ def test_async_export_to_file(tmp_path, name, route) -> None:
 @pytest.mark.parametrize(
     "status", ["FAILED", "REFUSED", "CANCELED", "CANCELED_BY_ADMIN", "ABORTED", "CANCELLED"]
 )
-def test_wait_for_job_failure_statuses(status) -> None:
+def test_wait_for_job_failure_statuses(status: str) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": status}))
         with (
@@ -112,7 +114,7 @@ def test_wait_for_import_job_returns_finished_answer() -> None:
     assert answer == {"status": "FINISHED"}
 
 
-def test_export_finished_without_download_url(tmp_path) -> None:
+def test_export_finished_without_download_url(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _start(mock, "/dataset/v4/etlExport/1")
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": "FINISHED"}))
@@ -141,7 +143,7 @@ def test_async_wait_for_job_failure_and_timeout() -> None:
     asyncio.run(run())
 
 
-def test_easy_export_to_file(tmp_path) -> None:
+def test_easy_export_to_file(tmp_path: Path) -> None:
     from reportnet_api.easy import export_to_file
 
     dest = tmp_path / "out.zip"
@@ -161,7 +163,7 @@ def test_failed_job_message_includes_info() -> None:
 
     with pytest.raises(JobError, match="CANCELED: File name does not match"):
         _check({"status": "CANCELED", "info": "File name does not match any table name."})
-    with pytest.raises(JobError, match="^Job FAILED$"):
+    with pytest.raises(JobError, match=r"^Job FAILED$"):
         _check({"status": "FAILED"})
 
 
@@ -195,7 +197,7 @@ def test_every_backend_status_is_handled_deliberately(status: str) -> None:
 
 
 @pytest.mark.parametrize("answer", [{"status": "SOMETHING_NEW"}, {}, {"status": None}])
-def test_unknown_status_keeps_waiting_but_warns(answer: dict) -> None:
+def test_unknown_status_keeps_waiting_but_warns(answer: dict[str, Any]) -> None:
     from reportnet_api.jobs import _check
 
     with pytest.warns(RuntimeWarning, match="Unrecognised job status"):

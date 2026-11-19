@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -31,7 +32,7 @@ def test_start_table_export_sends_params_and_filter_body() -> None:
     assert json.loads(request.content) == {"levelError": ["ERROR"], "idRules": "", "fieldValue": ""}
 
 
-def test_big_data_variants_use_dl_routes_and_qc_codes(tmp_path) -> None:
+def test_big_data_variants_use_dl_routes_and_qc_codes(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         table = mock.post("/dataset/exportFileDL").mock(return_value=httpx.Response(200))
         dataset = mock.get("/dataset/1/exportDatasetFileDL").mock(return_value=httpx.Response(200))
@@ -49,7 +50,7 @@ def test_big_data_variants_use_dl_routes_and_qc_codes(tmp_path) -> None:
     assert dl.called
 
 
-def test_fetch_returns_false_for_empty_body_and_leaves_no_file(tmp_path) -> None:
+def test_fetch_returns_false_for_empty_body_and_leaves_no_file(tmp_path: Path) -> None:
     dest = tmp_path / "t.csv"
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(DL).mock(return_value=httpx.Response(200, content=b""))
@@ -58,7 +59,7 @@ def test_fetch_returns_false_for_empty_body_and_leaves_no_file(tmp_path) -> None
     assert list(tmp_path.iterdir()) == []
 
 
-def test_fetch_saves_and_returns_true(tmp_path) -> None:
+def test_fetch_saves_and_returns_true(tmp_path: Path) -> None:
     dest = tmp_path / "t.csv"
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get(DL).mock(return_value=httpx.Response(200, content=b"a,b\n1,2\n"))
@@ -69,7 +70,9 @@ def test_fetch_saves_and_returns_true(tmp_path) -> None:
     assert [p.name for p in tmp_path.iterdir()] == ["t.csv"]  # no .part left
 
 
-def test_export_table_to_file_polls_until_ready(tmp_path, monkeypatch) -> None:
+def test_export_table_to_file_polls_until_ready(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("reportnet_api.resources.datasets_ext.time.sleep", lambda s: None)
     dest = tmp_path / "t.csv"
     with respx.mock(base_url=BASE_URL) as mock:
@@ -91,7 +94,7 @@ def test_export_table_to_file_polls_until_ready(tmp_path, monkeypatch) -> None:
     assert dest.read_bytes() == b"ok"
 
 
-def test_export_times_out_with_job_error(tmp_path, monkeypatch) -> None:
+def test_export_times_out_with_job_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("reportnet_api.resources.datasets_ext.time.sleep", lambda s: None)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post("/dataset/exportFileDL").mock(return_value=httpx.Response(200))
@@ -110,7 +113,7 @@ def test_dataset_file_names() -> None:
     assert _dataset_file_name("Test", "xlsx") == "Test.xlsx"
 
 
-def test_async_export_table_and_dataset(tmp_path, monkeypatch) -> None:
+def test_async_export_table_and_dataset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     async def no_sleep(seconds: float) -> None:
         return None
 
@@ -135,7 +138,9 @@ def test_async_export_table_and_dataset(tmp_path, monkeypatch) -> None:
     assert (tmp_path / "d.csv").read_bytes() == b"ok"
 
 
-def test_easy_export_table_resolves_name_and_rejects_unknown(tmp_path, monkeypatch) -> None:
+def test_easy_export_table_resolves_name_and_rejects_unknown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     pytest.importorskip("pandas")
     monkeypatch.setattr("reportnet_api.resources.datasets_ext.time.sleep", lambda s: None)
     schema = {
@@ -153,7 +158,9 @@ def test_easy_export_table_resolves_name_and_rejects_unknown(tmp_path, monkeypat
     assert export.calls.last.request.url.params["tableSchemaId"] == "abc"
 
 
-def test_existing_server_file_triggers_stale_warning(tmp_path, monkeypatch) -> None:
+def test_existing_server_file_triggers_stale_warning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr("reportnet_api.resources.datasets_ext.time.sleep", lambda s: None)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post("/dataset/exportFileDL").mock(return_value=httpx.Response(200))
@@ -166,7 +173,7 @@ def test_existing_server_file_triggers_stale_warning(tmp_path, monkeypatch) -> N
     assert (tmp_path / "t.csv").read_bytes() == b"old"
 
 
-def test_404_while_polling_means_not_ready_and_leaves_no_file(tmp_path) -> None:
+def test_404_while_polling_means_not_ready_and_leaves_no_file(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(DL).mock(return_value=httpx.Response(404))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -174,7 +181,7 @@ def test_404_while_polling_means_not_ready_and_leaves_no_file(tmp_path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
-def test_other_errors_while_polling_propagate(tmp_path) -> None:
+def test_other_errors_while_polling_propagate(tmp_path: Path) -> None:
     from reportnet_api import ServerError
 
     with respx.mock(base_url=BASE_URL) as mock:
@@ -185,7 +192,9 @@ def test_other_errors_while_polling_propagate(tmp_path) -> None:
     assert list(tmp_path.iterdir()) == []
 
 
-def test_sleep_is_clamped_to_remaining_time(tmp_path, monkeypatch) -> None:
+def test_sleep_is_clamped_to_remaining_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     sleeps: list[float] = []
     monkeypatch.setattr("reportnet_api.resources.datasets_ext.time.sleep", sleeps.append)
     with respx.mock(base_url=BASE_URL) as mock:
@@ -205,7 +214,7 @@ def test_sleep_is_clamped_to_remaining_time(tmp_path, monkeypatch) -> None:
 
 
 @pytest.mark.parametrize("bad", ["", ".csv", "zip csv", " csv"])
-def test_table_export_rejects_non_extension_mime(tmp_path, bad: str) -> None:
+def test_table_export_rejects_non_extension_mime(tmp_path: Path, bad: str) -> None:
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
         with pytest.raises(ValueError, match="bare file extension"):
             client.datasets.export_table_to_file(
@@ -213,7 +222,7 @@ def test_table_export_rejects_non_extension_mime(tmp_path, bad: str) -> None:
             )
 
 
-def test_table_schema_id_is_required(tmp_path) -> None:
+def test_table_schema_id_is_required(tmp_path: Path) -> None:
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
         with pytest.raises(TypeError):
             client.datasets.export_table_to_file(  # type: ignore[call-arg]
@@ -221,7 +230,7 @@ def test_table_schema_id_is_required(tmp_path) -> None:
             )
 
 
-def test_easy_export_table_validates_format_and_duplicate_names(tmp_path) -> None:
+def test_easy_export_table_validates_format_and_duplicate_names(tmp_path: Path) -> None:
     pytest.importorskip("pandas")
     schema = {
         "tableSchemas": [

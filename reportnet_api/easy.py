@@ -23,6 +23,7 @@ import warnings
 import zipfile
 from collections.abc import Callable, Iterable
 from decimal import Decimal
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -587,8 +588,8 @@ def apply_schema_dtypes(
     it, so a wrong guess never silently changes data. Returns new frames.
     """
     out = {}
-    for name, df in tables.items():
-        df = df.copy()
+    for name, frame in tables.items():
+        df = frame.copy()
         types = field_types.get(name, {})
         for col in df.columns:
             ftype = types.get(col)
@@ -1177,7 +1178,8 @@ def check_import_file(
             return []
         if best is None or len(missing) + len(extra) < len(best[0]) + len(best[1]):
             best = (missing, extra)
-    assert best is not None
+    if best is None:  # unreachable: the loop runs at least once
+        raise RuntimeError("no delimiter was tried")
     missing, extra = best
     parts = []
     if missing:
@@ -1196,7 +1198,7 @@ def _format_cell(value: Any, field_type: str) -> str:
     if value is None or value is pd.NA:
         return ""
     is_real = isinstance(value, numbers.Real) and not isinstance(value, numbers.Integral | bool)
-    if is_real and value != value:  # NaN, also numpy's
+    if is_real and value != value:  # noqa: PLR0124 - NaN, also numpy's and Decimal's
         return ""
     if value is pd.NaT:
         return ""
@@ -1346,8 +1348,9 @@ def check_access(
         rows.append({"check": "credential alive", "result": "yes", "detail": "list dataflows ok"})
     except ReportnetAPIError as err:
         verdict, detail = _probe_failure(err)
-        if err.status_code == 401 or (
-            err.status_code == 500 and _is_rejected_credential_500(err.response_body)
+        if err.status_code == HTTPStatus.UNAUTHORIZED or (
+            err.status_code == HTTPStatus.INTERNAL_SERVER_ERROR
+            and _is_rejected_credential_500(err.response_body)
         ):
             verdict = "no (rejected)"
             detail = "expired, revoked, or sent with the wrong scheme"
@@ -1367,7 +1370,7 @@ def check_access(
             try:
                 flow = client.dataflow.dataflow_datasets(dataflow_id)
             except ReportnetAPIError as err:
-                if err.status_code == 403:
+                if err.status_code == HTTPStatus.FORBIDDEN:
                     verdict, detail = "no access", "the server refuses this credential (403)"
                 elif "accessReferenceEntity" in err.response_body:
                     verdict, detail = "not found", "unknown id, or not visible (reported as 500)"
