@@ -1,3 +1,4 @@
+from pathlib import Path
 from types import SimpleNamespace as NS
 
 import pandas as pd
@@ -22,7 +23,7 @@ def _client(monkeypatch, calls=None):
     done = calls if calls is not None else []
 
     def fake(dataset_id, path, **kw):
-        done.append((dataset_id, kw, open(path).read()))
+        done.append((dataset_id, kw, Path(path).read_text()))
         return {"tid": {"numberOfRecordsImported": 1}}
 
     return NS(datasets=NS(import_file_and_wait=fake)), done

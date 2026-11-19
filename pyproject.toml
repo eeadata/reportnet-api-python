@@ -80,6 +80,9 @@ warn_unused_ignores = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--strict-markers", "--strict-config", "-ra"]
+filterwarnings = ["error"]
+xfail_strict = true
 
 [[tool.mypy.overrides]]
 module = ["pandas", "pandas.*"]

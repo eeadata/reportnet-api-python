@@ -304,9 +304,17 @@ def test_upload_passes_delimiter(flow, monkeypatch, tmp_path):
             seen.update(kw)
             return {}
 
+    checked = {}
+
+    def check(client, dataset_id, path, *, delimiter=None):
+        checked["delimiter"] = delimiter
+        return []
+
+    monkeypatch.setattr(easy, "check_import_file", check)  # else it fetches the real schema
     flow.client.datasets = Datasets()
     _ds(flow).upload(f, delimiter="|")
     assert seen["delimiter"] == "|" and seen["provider_id"] == 11
+    assert checked["delimiter"] == "|"
 
 
 def test_find_by_id_lets_an_authentication_error_through(client, monkeypatch):
