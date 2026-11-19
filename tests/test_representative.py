@@ -298,7 +298,7 @@ def test_import_normalises_line_ends_and_blank_lines(tmp_path) -> None:
 
 
 @pytest.mark.parametrize(
-    "name, content, message",
+    ("name", "content", "message"),
     [
         ("list.txt", EXPORT_CSV, r"\.csv"),
         ("list.csv", b'"AT","a@example.org"\n', "header"),

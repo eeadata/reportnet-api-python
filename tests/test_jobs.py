@@ -161,7 +161,7 @@ def test_failed_job_message_includes_info() -> None:
 
     with pytest.raises(JobError, match="CANCELED: File name does not match"):
         _check({"status": "CANCELED", "info": "File name does not match any table name."})
-    with pytest.raises(JobError, match="^Job FAILED$"):
+    with pytest.raises(JobError, match=r"^Job FAILED$"):
         _check({"status": "FAILED"})
 
 

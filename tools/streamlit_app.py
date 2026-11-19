@@ -164,10 +164,10 @@ with st.sidebar:
     # ReportnetClient prepends the scheme itself, so the prefix is stripped
     # here to avoid ending up with "Authorization: Bearer Bearer <token>".
     if raw_token.lower().startswith("bearer "):
-        token_scheme = "Bearer"
+        token_scheme = "Bearer"  # noqa: S105 - an auth scheme name, not a secret
         token = raw_token[len("bearer ") :]
     else:
-        token_scheme = "ApiKey"
+        token_scheme = "ApiKey"  # noqa: S105 - an auth scheme name, not a secret
         token = raw_token
     st.caption(f"Detected scheme: **{token_scheme}**")
 
@@ -201,7 +201,7 @@ requires_line = next(
 )
 if requires_line:
     msg = requires_line
-    if token_scheme == "ApiKey":
+    if token_scheme == "ApiKey":  # noqa: S105 - a scheme name, not a secret
         msg += " Your detected scheme is ApiKey, which is Reporter-level and will not satisfy this."
     st.warning(msg)
 

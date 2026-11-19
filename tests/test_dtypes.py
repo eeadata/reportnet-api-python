@@ -51,7 +51,7 @@ def test_boolean_true_false_any_case():
 
 
 @pytest.mark.parametrize(
-    "col,values",
+    ("col", "values"),
     [
         ("i", ["1", "x"]),
         ("i", ["1.5"]),

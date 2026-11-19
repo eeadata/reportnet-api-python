@@ -245,5 +245,5 @@ def test_streamed_bodies_are_not_retried(sleeps) -> None:
     "kwargs", [{"retries": -1}, {"backoff": -1.0}, {"max_delay": -0.1}, {"backoff": float("nan")}]
 )
 def test_policy_validates_fields(kwargs: dict) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="must be"):
         RetryPolicy(**kwargs)

@@ -41,7 +41,7 @@ def check(dataflow_id: int) -> None:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2:  # noqa: PLR2004 - program name plus at least one id
         raise SystemExit("usage: live_guard.py <dataflow_id> [...]")
     for arg in sys.argv[1:]:
         check(int(arg))

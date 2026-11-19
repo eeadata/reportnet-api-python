@@ -250,7 +250,7 @@ def test_validation_methods_delegate(flow, monkeypatch, tmp_path):
 
 def test_find_digit_string_is_an_id_and_empty_is_rejected(client):
     assert find_dataflow(client, " 7 ").name == "Water"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="query is empty"):
         find_dataflow(client, "  ")
 
 

@@ -44,7 +44,7 @@ def test_dataflows_kinds(kind: str, path: str) -> None:
 
 def test_dataflows_bad_kind() -> None:
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="kind must be one of"):
             client.dataflow.dataflows("nope")  # type: ignore[arg-type]
 
 
@@ -77,9 +77,9 @@ def test_async_dataflows_and_datasets() -> None:
 
 def test_dataflows_paging_needs_both() -> None:
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="given together"):
             client.dataflow.dataflows(page_size=10)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="given together"):
             client.dataflow.dataflows(page_num=0)
 
 

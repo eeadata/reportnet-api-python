@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 
 import pytest
 
@@ -90,12 +91,11 @@ def test_unwritable_out_is_a_message_not_a_traceback(capsys):
 
 
 def test_read_out_file_gets_the_usual_permissions(tmp_path):
-    import os
     import stat
 
     target = tmp_path / "out.csv"
     assert run("--demo", "read", "102", "1", "--out", str(target))[0] == 0
-    mode = stat.S_IMODE(os.stat(target).st_mode)
+    mode = stat.S_IMODE(Path(target).stat().st_mode)
     assert mode == 0o666 & ~cli._UMASK
 
 

@@ -9,7 +9,7 @@ BASE = "https://api.reportnet.europa.eu"
 
 def test_connect_detects_scheme(monkeypatch):
     monkeypatch.delenv("REPORTNET_API_KEY", raising=False)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="No credential"):
         easy.connect()
     assert easy.connect("abc")._core.build_headers()["Authorization"] == "ApiKey abc"
     c = easy.connect("Bearer xyz", base_url=BASE)
@@ -78,7 +78,7 @@ def test_read_table_needs_name_when_ambiguous(monkeypatch):
     monkeypatch.setattr(
         easy, "read_tables", lambda *a, **k: {"A": pd.DataFrame(), "B": pd.DataFrame()}
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="pass table_name"):
         easy.read_table(None, 1, 1)  # type: ignore[arg-type]
 
 
@@ -94,7 +94,7 @@ def test_forbidden_gets_hint():
     from reportnet_api import ForbiddenError
 
     respx.get(f"{BASE}/dataflow/v1/5").respond(403)
-    with pytest.raises(ForbiddenError, match="Reporter-level only.*mix up"):
+    with pytest.raises(ForbiddenError, match=r"Reporter-level only.*mix up"):
         easy.list_datasets(easy.connect("k"), 5)
 
 
@@ -368,7 +368,7 @@ def test_check_access_dataflow_verdicts():
     assert easy.check_access(client, 1, show=False)[2]["result"] == "not found"
     assert easy.check_access(client, 2, show=False)[2]["result"] == "no access"
     assert easy.check_access(client, 3, show=False)[2]["result"] == "unclear"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="positive integer id"):
         easy.check_access(client, 0)
 
 

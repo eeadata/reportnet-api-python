@@ -585,8 +585,9 @@ def main() -> None:
 
     import subprocess
 
-    subprocess.run(["ruff", "check", "--fix", *out_paths], check=True)
-    subprocess.run(["ruff", "format", *out_paths], check=True)
+    # Fixed argv, our own output files; `ruff` comes from the project environment (uv run).
+    subprocess.run(["ruff", "check", "--fix", *out_paths], check=True)  # noqa: S603, S607
+    subprocess.run(["ruff", "format", *out_paths], check=True)  # noqa: S603, S607
 
 
 if __name__ == "__main__":

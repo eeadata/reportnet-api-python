@@ -20,8 +20,9 @@ BASE_URL = "https://api.reportnet.europa.eu"
 V4_POLL = "/orchestrator/jobs/pollForJobStatus/41"
 V3_POLL = "/orchestrator/jobs/pollForJobStatus/43"
 V3_DOWNLOAD = "/orchestrator/jobs/downloadEtlExportedFile/43"
+# The backend's exact text, typographic quote and dash included.
 REFUSED_INFO = (
-    "ETL Export v4 isn’t compatible with non–big data dataflows. "
+    "ETL Export v4 isn’t compatible with non–big data dataflows. "  # noqa: RUF001
     "Please use a supported export version."
 )
 SCHEMA = {
@@ -134,7 +135,7 @@ def test_lake_dataflow_failure_is_not_retried_with_v3(tmp_path) -> None:
         _mock_refused_v4(mock, "/dataset/v4/etlExport/1", big_data=True)
         with (
             ReportnetClient(base_url=BASE_URL, token="t") as client,
-            pytest.raises(JobError, match="isn’t compatible"),
+            pytest.raises(JobError, match="isn’t compatible"),  # noqa: RUF001 - backend text
         ):
             easy.export_to_file(client, 1, 2, tmp_path / "out.zip")
     assert not (tmp_path / "out.zip").exists()

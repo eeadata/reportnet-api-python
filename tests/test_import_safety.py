@@ -110,7 +110,7 @@ def test_import_dataframe_writes_full_header_in_schema_order(monkeypatch):
         }
     )
     easy.import_dataframe(c, 1, 1, "TestTable", df)
-    dataset_id, kw, text = calls[0]
+    _dataset_id, kw, text = calls[0]
     assert kw["delimiter"] == ","
     assert text == ("Id,Amount,Day,At,Note\n1,,2026-11-07,2026-11-07T10:30:00Z,a\n,,,,\n")
 

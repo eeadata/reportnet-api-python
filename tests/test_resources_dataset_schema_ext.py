@@ -210,7 +210,7 @@ def test_import_and_wait_waits_for_datasets_then_stable_export(
 def test_import_and_wait_needs_a_schema_in_the_zip(tmp_path: Path) -> None:
     upload = _schema_zip(tmp_path / "s.zip", [])
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
-        with pytest.raises(ValueError, match="no .schema"):
+        with pytest.raises(ValueError, match=r"no .schema"):
             _wait(client, upload)
 
 
