@@ -54,7 +54,7 @@ class JobError(Exception):
     job itself reported the failure (`FAILED`, `CANCELED`, ...), else None.
     """
 
-    def __init__(self, message: str, *, status: str | None = None, info: str | None = None):
+    def __init__(self, message: str, *, status: str | None = None, info: str | None = None) -> None:
         super().__init__(message)
         self.status = status
         self.info = info
