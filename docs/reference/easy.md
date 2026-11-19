@@ -235,8 +235,8 @@ that is not a data lake (live on the sandbox, 2026-11-18). For CSV this then
 falls back to the older JSON export and writes the ZIP itself: one
 ``<table>.csv`` per table, comma-separated UTF-8, fields in schema order (then
 `country_code` when the records carry one), no record id column. That export is
-read into memory whole. Parquet has no such
-fallback; the `JobError` says so.
+read into memory whole. `timeout` covers both jobs together.
+Parquet has no such fallback; the `JobError` says so.
 
 **Live-tested notes:**
 
