@@ -32,7 +32,7 @@ _RESOURCES = (
 _REFERENCE_PAGES = {"jobs": "jobs", "easy": "easy"}
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Match:
     """One searchable function: how to call it and what it does."""
 
