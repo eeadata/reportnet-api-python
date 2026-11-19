@@ -4,8 +4,9 @@ from types import SimpleNamespace as NS
 import pandas as pd
 import pytest
 
-from reportnet_api import easy
+from reportnet_api import ReportnetAPIError, easy
 from reportnet_api.jobs import JobError
+from tests.helpers import api_error
 
 
 def _client(monkeypatch, calls=None):
@@ -65,9 +66,7 @@ def test_check_skips_non_csv_and_unreadable_schema(monkeypatch, tmp_path):
     assert easy.check_import_file(c, 1, tmp_path / "anything.zip") == []
 
     def boom(*a):
-        raise easy.ReportnetAPIError(
-            "x", status_code=500, response_body="", request=None, response=None
-        )
+        raise api_error(ReportnetAPIError, 500, "", "x")
 
     monkeypatch.setattr(easy, "_schema_fields", boom)
     assert easy.check_import_file(c, 1, _csv(tmp_path, "zzz\n")) == []

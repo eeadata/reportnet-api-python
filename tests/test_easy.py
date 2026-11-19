@@ -1,8 +1,11 @@
+from typing import Any
+
 import httpx
 import pytest
 import respx
 
 from reportnet_api import AsyncReportnetClient, RetryPolicy, easy
+from reportnet_api.jobs import JobError
 
 BASE = "https://api.reportnet.europa.eu"
 
@@ -41,7 +44,7 @@ def _row_offset_backend(rows: list[str], *, total: bool = True):
             {"countryCode": "GR", "fields": [{"fieldName": "a", "value": v}]}
             for v in rows[offset : offset + limit]
         ]
-        table: dict = {"tableName": "T", "records": recs}
+        table: dict[str, Any] = {"tableName": "T", "records": recs}
         if total:
             table["totalRecords"] = len(rows)
         return httpx.Response(200, json={"tables": [table]})
@@ -116,7 +119,7 @@ def no_schema_check(monkeypatch):
     monkeypatch.setattr(easy, "_schema_table_names", lambda *a, **k: None)
 
 
-def _rec(rid: str, value: str) -> dict:
+def _rec(rid: str, value: str) -> dict[str, Any]:
     return {"id_record": rid, "fields": [{"fieldName": "a", "value": value}]}
 
 
@@ -235,7 +238,7 @@ def test_validation_summary_groups_by_table_and_level():
 
 @respx.mock
 def test_validate_and_wait_waits_for_new_notification(monkeypatch):
-    monkeypatch.setattr(easy.time, "sleep", lambda s: None)
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
     other = {
         "eventType": "VALIDATION_FINISHED_EVENT",
@@ -258,10 +261,10 @@ def test_validate_and_wait_waits_for_new_notification(monkeypatch):
 
 @respx.mock
 def test_validate_and_wait_times_out(monkeypatch):
-    monkeypatch.setattr(easy.time, "sleep", lambda s: None)
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     respx.get(f"{BASE}/notification/findUserNotifications").respond(json={"userNotifications": []})
     respx.put(f"{BASE}/orchestrator/jobs/addValidationJob/9").respond(200)
-    with pytest.raises(easy.JobError):
+    with pytest.raises(JobError):
         easy.validate_and_wait(easy.connect("k"), 9, 5, timeout=0)
 
 
@@ -299,8 +302,13 @@ def test_connect_token_provider_and_retry():
 
 
 def test_connect_interactive_uses_getpass(monkeypatch):
-    prompts = []
-    monkeypatch.setattr(easy.getpass, "getpass", lambda p: prompts.append(p) or JWT)
+    prompts: list[str] = []
+
+    def getpass(p: str) -> str:
+        prompts.append(p)
+        return JWT
+
+    monkeypatch.setattr("reportnet_api.easy.getpass.getpass", getpass)
     c = easy.connect_interactive(base_url=BASE, retry=True)
     assert _auth(c) == f"Bearer {JWT}"
     assert len(prompts) == 1 and JWT not in prompts[0]
@@ -470,7 +478,7 @@ def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check):
     client = easy.connect("k")
     for bad in (True, 2.5, "10", -1):
         with pytest.raises(ValueError, match="page_size"):
-            easy.read_records(client, 7, 1, page_size=bad)  # type: ignore[arg-type]
+            easy.read_records(client, 7, 1, page_size=bad)
     with respx.mock:
         respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(json={"tables": []})
         with pytest.warns(RuntimeWarning):
@@ -503,7 +511,7 @@ def test_validation_errors_explicit_relational_skips_detection():
 
 @respx.mock
 def test_validate_and_wait_passes_data_lake_through(monkeypatch):
-    monkeypatch.setattr(easy.time, "sleep", lambda s: None)
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
     new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}
     answers = iter([[old], [new, old]])

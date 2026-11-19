@@ -1,6 +1,7 @@
 """Tests for the shared Orchestrator job poller and the *_to_file / wait_for_job helpers."""
 
 import asyncio
+from typing import Any
 
 import httpx
 import pytest
@@ -195,7 +196,7 @@ def test_every_backend_status_is_handled_deliberately(status: str) -> None:
 
 
 @pytest.mark.parametrize("answer", [{"status": "SOMETHING_NEW"}, {}, {"status": None}])
-def test_unknown_status_keeps_waiting_but_warns(answer: dict) -> None:
+def test_unknown_status_keeps_waiting_but_warns(answer: dict[str, Any]) -> None:
     from reportnet_api.jobs import _check
 
     with pytest.warns(RuntimeWarning, match="Unrecognised job status"):

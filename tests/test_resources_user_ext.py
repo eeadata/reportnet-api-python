@@ -1,6 +1,7 @@
 """Tests for the hand-written User resource."""
 
 import asyncio
+from typing import Any
 
 import httpx
 import pytest
@@ -40,7 +41,7 @@ def test_refresh_token_error() -> None:
 
 
 def test_async_refresh_token() -> None:
-    async def run() -> dict:
+    async def run() -> dict[str, Any]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.post("/user/refreshToken").mock(return_value=httpx.Response(200, json=TOKEN_VO))
             async with AsyncReportnetClient(base_url=BASE_URL, token="t") as client:

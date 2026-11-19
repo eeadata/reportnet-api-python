@@ -164,7 +164,7 @@ def test_sync_lead_reporter_routes(tmp_path) -> None:
                 representative_id=77, dataflow_id=5, email="a@example.org"
             )
             assert new_id == 901
-            assert rep.validate_lead_reporters(5) is None
+            rep.validate_lead_reporters(5)
 
     assert export.calls.last.request.headers["Accept"] == "*/*"
     request = imported.calls.last.request

@@ -19,7 +19,7 @@ def test_start_validation_sends_released_only_when_true() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(BASE_URL, "t") as c:
-            assert c.validation.start_validation(7) is None
+            c.validation.start_validation(7)
             assert "released" not in route.calls[-1].request.url.params
             c.validation.start_validation(7, released=True)
             assert route.calls[-1].request.url.params["released"] == "true"

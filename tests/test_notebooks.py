@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -26,7 +27,7 @@ def test_notebooks_are_clean(path):
 
 def test_demo_notebook_runs_offline_from_start_to_finish():
     _, cells = _code_cells(EXAMPLES / "try_it_demo.ipynb")
-    namespace: dict = {}
+    namespace: dict[str, Any] = {}
     for source in cells:
         code = "\n".join(line for line in source.splitlines() if not line.startswith("%pip"))
         exec(compile(code, "try_it_demo", "exec"), namespace)  # noqa: S102

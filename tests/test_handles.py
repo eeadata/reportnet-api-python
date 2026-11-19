@@ -5,6 +5,7 @@ import pytest
 
 from reportnet_api import ForbiddenError, easy
 from reportnet_api.handles import Dataflow, find_dataflow
+from tests.helpers import api_error
 
 TOKEN = "SECRET-TOKEN-123"
 
@@ -68,7 +69,7 @@ def test_unknown_key_lists_available(flow):
 
 def test_forbidden_providers_fall_back_to_names(flow, monkeypatch):
     def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_providers", deny)
     assert flow.dataset("Greece reporting").id == 4
@@ -141,9 +142,14 @@ def test_easy_find_dataflow_delegates(client):
 
 
 def test_tables_delegates(flow, monkeypatch):
-    seen = []
+    seen: list[int] = []
     frame = pd.DataFrame({"name": ["T"]})
-    monkeypatch.setattr(easy, "list_tables", lambda c, i: seen.append(i) or frame)
+
+    def list_tables(c: object, i: int) -> pd.DataFrame:
+        seen.append(i)
+        return frame
+
+    monkeypatch.setattr(easy, "list_tables", list_tables)
     assert flow.dataset(4).tables is frame and seen == [4]
 
 
@@ -157,7 +163,7 @@ def test_refresh_returns_new_handle(flow, monkeypatch):
 
 def test_find_by_int_id_survives_unreadable_listing(client, monkeypatch):
     def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_dataflows", deny)
     monkeypatch.setattr(easy, "list_datasets", lambda *a, **k: _datasets())
@@ -177,7 +183,7 @@ def test_country_code_without_dataset_never_falls_back_to_a_name(flow):
 
 def test_short_key_without_readable_providers_is_not_a_substring_guess(flow, monkeypatch):
     def deny(*a, **k):
-        raise ForbiddenError("no", status_code=403, response_body="", request=None, response=None)
+        raise api_error(ForbiddenError, 403, "", "no")
 
     monkeypatch.setattr(easy, "list_providers", deny)
     with pytest.raises(LookupError, match="providers"):
@@ -197,7 +203,7 @@ def test_id_lookup_survives_any_provider_failure(flow, monkeypatch):
     from reportnet_api import ServerError
 
     def boom(*a, **k):
-        raise ServerError("x", status_code=500, response_body="", request=None, response=None)
+        raise api_error(ServerError, 500, "", "x")
 
     monkeypatch.setattr(easy, "list_providers", boom)
     ds = flow.dataset(4)
@@ -209,7 +215,7 @@ def _ds(flow):
 
 
 def test_read_passes_ids_and_provider(flow, monkeypatch):
-    seen = {}
+    seen: dict[str, object] = {}
 
     def fake(client, dataset_id, dataflow_id, table=None, **kw):
         seen.update(ds=dataset_id, flow=dataflow_id, table=table, **kw)
@@ -223,7 +229,7 @@ def test_read_passes_ids_and_provider(flow, monkeypatch):
 
 
 def test_read_all_passes_ids_and_options(flow, monkeypatch):
-    seen = {}
+    seen: dict[str, object] = {}
 
     def fake(client, dataset_id, dataflow_id, **kw):
         seen.update(ds=dataset_id, flow=dataflow_id, **kw)
@@ -255,16 +261,22 @@ def test_find_digit_string_is_an_id_and_empty_is_rejected(client):
 
 
 def test_export_upload_validate_delegate(flow, monkeypatch, tmp_path):
-    calls = []
-    monkeypatch.setattr(
-        easy, "export_to_file", lambda c, d, f, dest, **k: calls.append(("x", d, f, k)) or dest
-    )
-    monkeypatch.setattr(
-        easy, "import_file", lambda c, d, f, path, **k: calls.append(("u", d, f, k)) or {}
-    )
-    monkeypatch.setattr(
-        easy, "validate_and_wait", lambda c, d, f, **k: calls.append(("v", d, f, k)) or None
-    )
+    calls: list[tuple[str, int, int, dict[str, object]]] = []
+
+    def export_to_file(c: object, d: int, f: int, dest: object, **k: object) -> object:
+        calls.append(("x", d, f, k))
+        return dest
+
+    def import_file(c: object, d: int, f: int, path: object, **k: object) -> dict[str, object]:
+        calls.append(("u", d, f, k))
+        return {}
+
+    def validate_and_wait(c: object, d: int, f: int, **k: object) -> None:
+        calls.append(("v", d, f, k))
+
+    monkeypatch.setattr(easy, "export_to_file", export_to_file)
+    monkeypatch.setattr(easy, "import_file", import_file)
+    monkeypatch.setattr(easy, "validate_and_wait", validate_and_wait)
     ds = _ds(flow)
     ds.export(tmp_path / "e.zip", file_format="parquet")
     ds.upload(tmp_path / "T.csv", replace=True)
@@ -321,9 +333,7 @@ def test_find_by_id_lets_an_authentication_error_through(client, monkeypatch):
     from reportnet_api import AuthenticationError
 
     def deny(*a, **k):
-        raise AuthenticationError(
-            "401", status_code=401, response_body="", request=None, response=None
-        )
+        raise api_error(AuthenticationError, 401, "", "401")
 
     monkeypatch.setattr(easy, "list_dataflows", deny)
     monkeypatch.setattr(easy, "list_datasets", deny)
@@ -343,7 +353,12 @@ def test_reads_refuse_a_data_lake_dataflow(monkeypatch):
     for call in (ds.read, ds.read_all, lambda: read_many([ds], "T")):
         with pytest.raises(DataLakeError, match="export"):
             call()
-    seen = {}
-    monkeypatch.setattr(easy, "read_tables", lambda c, d, f, **k: seen.update(k) or {})
+    seen: dict[str, object] = {}
+
+    def read_tables(c: object, d: int, f: int, **k: object) -> dict[str, object]:
+        seen.update(k)
+        return {}
+
+    monkeypatch.setattr(easy, "read_tables", read_tables)
     ds.read_all(allow_data_lake=True)
     assert seen["provider_id"] == 11

@@ -18,12 +18,11 @@ def test_delete_snapshot() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.dataset_snapshot.delete_snapshot(id_dataset=1, id_snapshot=7)
+            client.dataset_snapshot.delete_snapshot(id_dataset=1, id_snapshot=7)
 
     request = route.calls.last.request
     assert request.method == "DELETE"
     assert request.url.path == "/snapshot/v1/7/dataset/1/delete"
-    assert result is None
 
 
 def test_export_historic_releases_csv() -> None:

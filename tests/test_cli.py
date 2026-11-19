@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from reportnet_api import cli
+from reportnet_api.jobs import ProgressPrinter
 
 
 def run(*argv):
@@ -50,7 +51,9 @@ def test_errors_are_short_messages_not_tracebacks(monkeypatch, capsys):
 
 
 def test_no_write_commands_and_credential_not_an_argument():
-    choices = set(cli.build_parser()._subparsers._group_actions[0].choices)
+    subparsers = cli.build_parser()._subparsers
+    assert subparsers is not None
+    choices = set(subparsers._group_actions[0].choices or ())
     assert choices == {
         "check",
         "dataflows",
@@ -104,7 +107,7 @@ def test_export_closes_the_progress_line_on_failure(monkeypatch, capsys):
     from reportnet_api.jobs import JobError
 
     closed = []
-    monkeypatch.setattr(cli.ProgressPrinter, "close", lambda self: closed.append(True))
+    monkeypatch.setattr(ProgressPrinter, "close", lambda self: closed.append(True))
 
     def fail(*a, **k):
         raise JobError("job CANCELED")

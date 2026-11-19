@@ -1,6 +1,7 @@
 """Tests for import_file_and_wait (sync + async), the statistics check and easy.import_file."""
 
 import asyncio
+from typing import Any
 
 import httpx
 import pytest
@@ -16,7 +17,7 @@ BIG = "/dataset/v2/importFileData/1"
 SMALL = "/dataset/v1/1/importFileData"
 POLL = "/orchestrator/jobs/pollForJobStatus/9"
 T = "tbl"
-EMPTY: dict = {}
+EMPTY: dict[str, Any] = {}
 ONE = {T: {"lastImportDate": 100, "numberOfRecordsImported": 1, "fileExtension": "csv"}}
 TWO = {T: {"lastImportDate": 200, "numberOfRecordsImported": 2, "fileExtension": "csv"}}
 SAME_COUNT_NEW_DATE = {T: {"lastImportDate": 300, "numberOfRecordsImported": 1}}
@@ -232,7 +233,7 @@ def test_timeout_starts_after_the_upload(csv, clock) -> None:
 
 
 def test_async_timeout_starts_after_the_upload(csv, clock) -> None:
-    async def run() -> dict:
+    async def run() -> dict[str, Any]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.post(SMALL).mock(side_effect=_slow_upload(clock))
             _stats(mock, EMPTY, EMPTY, ONE)

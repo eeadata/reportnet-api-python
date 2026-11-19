@@ -1,6 +1,7 @@
 """Tests for `progress=`, the `Job` object and Ctrl-C reporting (P10-15). Mocked only."""
 
 import io
+from typing import Any
 
 import httpx
 import pytest
@@ -65,7 +66,7 @@ def test_printer_default_stream_is_stdout_not_a_tty(capsys) -> None:
 
 
 def test_wait_for_job_progress_true_and_callable(capsys) -> None:
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(POLL).mock(side_effect=_answers("QUEUED", "IN_PROGRESS", "FINISHED") * 2)
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
@@ -162,7 +163,7 @@ def test_job_without_start_answer_url_raises() -> None:
 
 
 def test_read_tables_page_progress(no_schema_check) -> None:
-    events: list[dict] = []
+    events: list[dict[str, Any]] = []
 
     def page(request: httpx.Request) -> httpx.Response:
         n = int(request.url.params["offset"])  # a 0-based row offset

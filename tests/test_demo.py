@@ -4,7 +4,8 @@ from reportnet_api.demo import DEMO_DATAFLOW_ID, demo_client
 
 
 def test_version_is_a_string():
-    assert isinstance(reportnet_api.__version__, str) and reportnet_api.__version__
+    assert isinstance(reportnet_api.__version__, str)
+    assert reportnet_api.__version__
 
 
 def test_demo_runs_the_notebook_helpers_without_network(capsys):

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from typing import Any
 
 import httpx
 import pytest
@@ -55,12 +56,13 @@ def test_dataflow_datasets() -> None:
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
             result = client.dataflow.dataflow_datasets(4242, provider_id=5)
+    assert result is not None
     assert result["id"] == 4242
     assert route.calls.last.request.url.params["providerId"] == "5"
 
 
 def test_async_dataflows_and_datasets() -> None:
-    async def run() -> tuple[dict, dict]:
+    async def run() -> tuple[dict[str, Any], dict[str, Any] | None]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.post("/dataflow/getDataflows").mock(return_value=httpx.Response(200, json=PAGE))
             mock.get("/dataflow/v1/7").mock(return_value=httpx.Response(200, json={"id": 7}))
@@ -142,7 +144,7 @@ def test_delete_dataflow() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.delete("/dataflow/13555").mock(return_value=httpx.Response(200))
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            assert client.dataflow.delete_dataflow(13555) is None
+            client.dataflow.delete_dataflow(13555)
 
     assert route.called
 

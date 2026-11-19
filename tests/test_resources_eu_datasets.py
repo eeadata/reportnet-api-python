@@ -14,13 +14,12 @@ def test_populate_data_from_data_collection() -> None:
             return_value=httpx.Response(200)
         )
         with ReportnetClient(base_url=BASE_URL, token="t") as client:
-            result = client.eu_datasets.populate_data_from_data_collection(dataflow_id=5, job_id=9)
+            client.eu_datasets.populate_data_from_data_collection(dataflow_id=5, job_id=9)
 
     request = route.calls.last.request
     assert request.method == "POST"
     assert request.url.path == "/euDataset/v1/populateData/dataflow/5"
     assert request.url.params["jobId"] == "9"
-    assert result is None
 
 
 def test_populate_data_from_data_collection_without_job_id() -> None:

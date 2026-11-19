@@ -8,6 +8,7 @@ import csv
 import io
 import json
 import zipfile
+from typing import Any
 
 import httpx
 import pytest
@@ -74,7 +75,7 @@ ETL_JSON = {
 }
 
 
-def _zip_of(name: str, payload: dict) -> bytes:
+def _zip_of(name: str, payload: dict[str, Any]) -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr(name, json.dumps(payload))
