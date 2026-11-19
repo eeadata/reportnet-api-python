@@ -129,7 +129,6 @@ class DatasetSchemaResource:
         url = f"/dataschema/v1/{dataset_schema_id}/importFieldSchemas"
         with stream_upload_file("file", file) as files:
             self._client.request("POST", url, params=params, files=files)
-        return None
 
     def update_manually_editable_by_dataset_id(
         self,
@@ -141,7 +140,6 @@ class DatasetSchemaResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataschema/updateManuallyEditable/{dataset_id}"
         self._client.request("PUT", url, params=params)
-        return None
 
 
 class AsyncDatasetSchemaResource:
@@ -259,7 +257,6 @@ class AsyncDatasetSchemaResource:
         url = f"/dataschema/v1/{dataset_schema_id}/importFieldSchemas"
         with stream_upload_file("file", file) as files:
             await self._client.request("POST", url, params=params, files=files)
-        return None
 
     async def update_manually_editable_by_dataset_id(
         self,
@@ -271,4 +268,3 @@ class AsyncDatasetSchemaResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataschema/updateManuallyEditable/{dataset_id}"
         await self._client.request("PUT", url, params=params)
-        return None

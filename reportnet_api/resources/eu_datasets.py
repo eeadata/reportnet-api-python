@@ -24,7 +24,6 @@ class EuDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/euDataset/v1/populateData/dataflow/{dataflow_id}"
         self._client.request("POST", url, params=params)
-        return None
 
 
 class AsyncEuDatasetsResource:
@@ -41,4 +40,3 @@ class AsyncEuDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/euDataset/v1/populateData/dataflow/{dataflow_id}"
         await self._client.request("POST", url, params=params)
-        return None

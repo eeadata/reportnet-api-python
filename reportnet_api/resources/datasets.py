@@ -56,7 +56,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/convertIcebergToParquetTables/{dataset_id}"
         self._client.request("POST", url, params=params)
-        return None
 
     def convert_parquet_to_iceberg_tables(
         self,
@@ -74,7 +73,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/convertParquetToIcebergTables/{dataset_id}"
         self._client.request("POST", url, params=params)
-        return None
 
     def create_empty_tables_v3(
         self,
@@ -86,7 +84,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/{dataset_id}/createEmptyTablesV3"
         self._client.request("POST", url, params=params)
-        return None
 
     def create_public_files(
         self,
@@ -103,7 +100,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/createPublicFiles"
         self._client.request("POST", url, params=params)
-        return None
 
     def delete_attachment(
         self,
@@ -140,7 +136,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         self._client.request("DELETE", url, params=params)
-        return None
 
     def delete_dataset_data(
         self,
@@ -219,7 +214,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/download-imported-file"
         self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     def duplicate_field_value_exists(
         self,
@@ -290,7 +284,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/etlExport"
         self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     def etl_export_dataset_v2(
         self,
@@ -346,7 +339,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v2/etlExport/{dataset_id}"
         self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     def etl_export_dataset_with_job(
         self,
@@ -631,7 +623,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     def get_available_for_manual_editing_tables(
         self,
@@ -809,7 +800,6 @@ class DatasetsResource:
         url = f"/dataset/v1/{dataset_id}/importFileData"
         with stream_upload_file("file", file) as files:
             self._client.request("POST", url, params=params, files=files)
-        return None
 
     def is_iceberg_table_created(
         self,
@@ -850,7 +840,6 @@ class DatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/restorePrefilledTables/{dataset_id}"
         self._client.request("POST", url, params=params)
-        return None
 
     def update_attachment(
         self,
@@ -889,7 +878,6 @@ class DatasetsResource:
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         with stream_upload_file("file", file) as files:
             self._client.request("PUT", url, params=params, files=files)
-        return None
 
     def update_geometry(
         self,
@@ -899,7 +887,6 @@ class DatasetsResource:
         params = None
         url = f"/dataset/{dataset_id}/updateGeometry"
         self._client.request("PUT", url, params=params)
-        return None
 
     def update_geometry_v2(
         self,
@@ -909,7 +896,6 @@ class DatasetsResource:
         params = None
         url = f"/dataset/v2/{dataset_id}/updateGeometry"
         self._client.request("PUT", url, params=params)
-        return None
 
 
 class AsyncDatasetsResource:
@@ -954,7 +940,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/convertIcebergToParquetTables/{dataset_id}"
         await self._client.request("POST", url, params=params)
-        return None
 
     async def convert_parquet_to_iceberg_tables(
         self,
@@ -972,7 +957,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/convertParquetToIcebergTables/{dataset_id}"
         await self._client.request("POST", url, params=params)
-        return None
 
     async def create_empty_tables_v3(
         self,
@@ -984,7 +968,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/{dataset_id}/createEmptyTablesV3"
         await self._client.request("POST", url, params=params)
-        return None
 
     async def create_public_files(
         self,
@@ -1001,7 +984,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/createPublicFiles"
         await self._client.request("POST", url, params=params)
-        return None
 
     async def delete_attachment(
         self,
@@ -1038,7 +1020,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         await self._client.request("DELETE", url, params=params)
-        return None
 
     async def delete_dataset_data(
         self,
@@ -1117,7 +1098,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/download-imported-file"
         await self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     async def duplicate_field_value_exists(
         self,
@@ -1188,7 +1168,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/etlExport"
         await self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     async def etl_export_dataset_v2(
         self,
@@ -1244,7 +1223,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v2/etlExport/{dataset_id}"
         await self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     async def etl_export_dataset_with_job(
         self,
@@ -1529,7 +1507,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         await self._client.download("GET", url, params=params, dest=dest)
-        return None
 
     async def get_available_for_manual_editing_tables(
         self,
@@ -1707,7 +1684,6 @@ class AsyncDatasetsResource:
         url = f"/dataset/v1/{dataset_id}/importFileData"
         with stream_upload_file("file", file) as files:
             await self._client.request("POST", url, params=params, files=files)
-        return None
 
     async def is_iceberg_table_created(
         self,
@@ -1748,7 +1724,6 @@ class AsyncDatasetsResource:
         params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/restorePrefilledTables/{dataset_id}"
         await self._client.request("POST", url, params=params)
-        return None
 
     async def update_attachment(
         self,
@@ -1787,7 +1762,6 @@ class AsyncDatasetsResource:
         url = f"/dataset/v1/{dataset_id}/field/{field_id}/attachment"
         with stream_upload_file("file", file) as files:
             await self._client.request("PUT", url, params=params, files=files)
-        return None
 
     async def update_geometry(
         self,
@@ -1797,7 +1771,6 @@ class AsyncDatasetsResource:
         params = None
         url = f"/dataset/{dataset_id}/updateGeometry"
         await self._client.request("PUT", url, params=params)
-        return None
 
     async def update_geometry_v2(
         self,
@@ -1807,4 +1780,3 @@ class AsyncDatasetsResource:
         params = None
         url = f"/dataset/v2/{dataset_id}/updateGeometry"
         await self._client.request("PUT", url, params=params)
-        return None

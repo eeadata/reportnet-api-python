@@ -39,7 +39,6 @@ class ReleaseReceiptsResource:
         params = None
         url = f"/release-receipts/dataflow/{dataflow_id}"
         self._client.request("DELETE", url, params=params)
-        return None
 
     def get_release_receipt_by_dataflow_id(
         self,
@@ -94,7 +93,6 @@ class AsyncReleaseReceiptsResource:
         params = None
         url = f"/release-receipts/dataflow/{dataflow_id}"
         await self._client.request("DELETE", url, params=params)
-        return None
 
     async def get_release_receipt_by_dataflow_id(
         self,
