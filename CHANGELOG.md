@@ -4,6 +4,18 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## 0.1.3 (unreleased)
+
+- Downloads (`client.download()` and everything built on it, such as `export_to_file`)
+  write to a temporary file next to `dest` and replace `dest` only when complete: a
+  failed download no longer leaves a partial file in place of the previous one.
+- `export_to_file`'s fallback on non-data-lake dataflows now stays within the one
+  `timeout` and no longer overwrites a file named `<dest>.part`.
+- `TooManyRequestsError.retry_after` returns `None` (not `inf`/`nan`) for such
+  `Retry-After` values.
+- Development: strict mypy over the whole project, a wider ruff rule set, warnings as
+  errors in tests (which also no longer reach the network), pre-commit hooks.
+
 ## 0.1.2 (2026-11-19)
 
 - `easy.export_to_file` (and `Dataset.export`) work again on dataflows that are not a

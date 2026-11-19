@@ -9,7 +9,8 @@ import io
 import json
 import zipfile
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, NoReturn
 
 import httpx
 import pytest
@@ -166,3 +167,48 @@ def test_timeout_is_not_retried_with_v3(tmp_path: Path) -> None:
         ):
             easy.export_to_file(client, 1, 2, tmp_path / "out.zip", timeout=0)
     assert not lake.called
+
+
+def test_fallback_keeps_a_foreign_part_file(tmp_path: Path) -> None:
+    dest = tmp_path / "out.zip"
+    foreign = tmp_path / "out.zip.part"
+    foreign.write_bytes(b"not ours")
+    with respx.mock(base_url=BASE_URL) as mock:
+        _mock_refused_v4(mock, "/dataset/v4/etlExport/1", big_data=False)
+        mock.get("/dataset/v3/etlExport/1").mock(
+            return_value=httpx.Response(200, json={"pollingUrl": V3_POLL + "?datasetId=1"})
+        )
+        mock.get(V3_POLL).mock(
+            return_value=httpx.Response(
+                200, json={"status": "FINISHED", "downloadUrl": V3_DOWNLOAD + "?datasetId=1"}
+            )
+        )
+        mock.get(V3_DOWNLOAD).mock(
+            return_value=httpx.Response(200, content=_zip_of("43.json", ETL_JSON))
+        )
+        mock.get("/dataschema/v1/datasetId/1").mock(return_value=httpx.Response(200, json=SCHEMA))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            easy.export_to_file(client, 1, 2, dest)
+    assert foreign.read_bytes() == b"not ours"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["out.zip", "out.zip.part"]
+
+
+def test_fallback_gets_only_the_time_left(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    clock = iter([100.0, 340.0])  # export starts at 100 s; the v4 job fails at 340 s
+    monkeypatch.setattr("reportnet_api.easy.time", SimpleNamespace(monotonic=lambda: next(clock)))
+    monkeypatch.setattr(easy, "is_data_lake", lambda client, dataflow_id: False)
+    seen: dict[str, float] = {}
+
+    def refused(*a: object, **k: object) -> NoReturn:
+        raise JobError("Job FAILED", status="FAILED", info=REFUSED_INFO)
+
+    def fallback(*args: object) -> None:
+        timeout = args[5]
+        assert isinstance(timeout, float)
+        seen["timeout"] = timeout
+
+    monkeypatch.setattr(easy, "_export_csv_zip_from_json", fallback)
+    with ReportnetClient(base_url=BASE_URL, token="t") as client:
+        monkeypatch.setattr(client.datasets, "export_zip_csv_to_file", refused)
+        easy.export_to_file(client, 1, 2, tmp_path / "out.zip", timeout=300.0)
+    assert seen["timeout"] == 60.0
