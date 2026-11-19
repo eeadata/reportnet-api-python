@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
-from ._core import RetryPolicy, caller_stacklevel
+from ._core import RetryPolicy, atomic_destination, caller_stacklevel
 from ._exceptions import ForbiddenError, ReportnetAPIError, _is_rejected_credential_500
 from .client import ReportnetClient
 from .demo import demo_client as _demo_client
@@ -907,8 +907,8 @@ def export_to_file(
     falls back to the older JSON export and writes the ZIP itself: one
     ``<table>.csv`` per table, comma-separated UTF-8, fields in schema order (then
     `country_code` when the records carry one), no record id column. That export is
-    read into memory whole. Parquet has no such
-    fallback; the `JobError` says so.
+    read into memory whole. `timeout` covers both jobs together.
+    Parquet has no such fallback; the `JobError` says so.
     """
     _require_id(dataset_id, "dataset_id", _DATASET_HINT)
     _require_id(dataflow_id, "dataflow_id", _DATAFLOW_HINT)
@@ -919,6 +919,7 @@ def export_to_file(
         if file_format == "csv"
         else client.datasets.export_zip_parquet_to_file
     )
+    started = time.monotonic()
     try:
         try:
             export(
@@ -939,8 +940,9 @@ def export_to_file(
                     status=err.status,
                     info=err.info,
                 ) from err
+            left = max(0.0, timeout - (time.monotonic() - started))  # one budget for both jobs
             _export_csv_zip_from_json(
-                client, dataset_id, dataflow_id, Path(dest), table_schema_id, timeout, progress
+                client, dataset_id, dataflow_id, Path(dest), table_schema_id, left, progress
             )
     except ForbiddenError as err:
         raise _hinted(err, _FORBIDDEN_HINT) from err
@@ -976,24 +978,19 @@ def _export_csv_zip_from_json(
         field_order = _schema_field_types(client, dataset_id)
     except ReportnetAPIError:
         field_order = {}  # columns then follow the records
-    part = dest.with_name(dest.name + ".part")
-    try:
-        with zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED) as out:
-            for table in payload.get("tables") or []:
-                name = str(table.get("tableName") or "table")
-                rows = _records_to_rows(table.get("records") or [])
-                columns = list(field_order.get(name, {}))
-                for row in rows:
-                    columns += [k for k in row if k not in columns]
-                buf = io.StringIO()
-                writer = csv.writer(buf, lineterminator="\n")
-                writer.writerow(columns)
-                for row in rows:
-                    writer.writerow(["" if row.get(c) is None else row[c] for c in columns])
-                out.writestr(f"{name}.csv", buf.getvalue().encode("utf-8"))
-        part.replace(dest)
-    finally:
-        part.unlink(missing_ok=True)
+    with atomic_destination(dest) as part, zipfile.ZipFile(part, "w", zipfile.ZIP_DEFLATED) as out:
+        for table in payload.get("tables") or []:
+            name = str(table.get("tableName") or "table")
+            rows = _records_to_rows(table.get("records") or [])
+            columns = list(field_order.get(name, {}))
+            for row in rows:
+                columns += [k for k in row if k not in columns]
+            buf = io.StringIO()
+            writer = csv.writer(buf, lineterminator="\n")
+            writer.writerow(columns)
+            for row in rows:
+                writer.writerow(["" if row.get(c) is None else row[c] for c in columns])
+            out.writestr(f"{name}.csv", buf.getvalue().encode("utf-8"))
 
 
 def export_table(
