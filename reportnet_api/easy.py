@@ -23,6 +23,7 @@ import warnings
 import zipfile
 from collections.abc import Callable, Iterable
 from decimal import Decimal
+from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -1346,8 +1347,8 @@ def check_access(
         rows.append({"check": "credential alive", "result": "yes", "detail": "list dataflows ok"})
     except ReportnetAPIError as err:
         verdict, detail = _probe_failure(err)
-        if err.status_code == 401 or (
-            err.status_code == 500 and _is_rejected_credential_500(err.response_body)
+        if err.status_code == HTTPStatus.UNAUTHORIZED or (
+            err.status_code == HTTPStatus.INTERNAL_SERVER_ERROR and _is_rejected_credential_500(err.response_body)
         ):
             verdict = "no (rejected)"
             detail = "expired, revoked, or sent with the wrong scheme"
@@ -1367,7 +1368,7 @@ def check_access(
             try:
                 flow = client.dataflow.dataflow_datasets(dataflow_id)
             except ReportnetAPIError as err:
-                if err.status_code == 403:
+                if err.status_code == HTTPStatus.FORBIDDEN:
                     verdict, detail = "no access", "the server refuses this credential (403)"
                 elif "accessReferenceEntity" in err.response_body:
                     verdict, detail = "not found", "unknown id, or not visible (reported as 500)"
