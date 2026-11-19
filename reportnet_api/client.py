@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -36,7 +37,7 @@ class ReportnetClient:
         base_url: str,
         token: TokenLike,
         *,
-        token_scheme: str = "Bearer",
+        token_scheme: str = "Bearer",  # noqa: S107 - an auth scheme name, not a secret
         timeout: float | httpx.Timeout | None = DEFAULT_TIMEOUT,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -100,7 +101,7 @@ class ReportnetClient:
             if not response.is_success:
                 response.read()
                 self._core.handle_response(response)
-            with open(dest, "wb") as fh:
+            with Path(dest).open("wb") as fh:
                 for chunk in response.iter_bytes():
                     fh.write(chunk)
 

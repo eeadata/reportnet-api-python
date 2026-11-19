@@ -78,6 +78,9 @@ ignore = [
     "FBT002",   # same
     "PT018",    # splitting compound asserts is churn; pytest already shows both sides
     "SIM117",   # nested `with` blocks read fine; merging them is style only
+    "PLR0911",  # complexity counts: splitting long, linear functions risks behaviour
+    "PLR0912",  #   changes for no correctness gain; revisit case by case
+    "PLR0915",
 ]
 
 [tool.ruff.lint.per-file-ignores]

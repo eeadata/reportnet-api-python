@@ -237,6 +237,7 @@ def _wait(
     poll_interval: float,
     timeout: float,
     progress: Progress,
+    *,
     announce_interrupt: bool,
 ) -> dict[str, Any]:
     url = polling_url_of(job)
@@ -278,7 +279,7 @@ def wait_for_job(
     callable receives an event dict per poll (see `progress_event()`). With
     progress on, Ctrl-C prints the job id and that the job keeps running.
     """
-    return _wait(client, job, poll_interval, timeout, progress, False)
+    return _wait(client, job, poll_interval, timeout, progress, announce_interrupt=False)
 
 
 class Job:
@@ -332,7 +333,14 @@ class Job:
         self, *, poll_interval: float = 2.0, timeout: float = 300.0, progress: Progress = None
     ) -> dict[str, Any]:
         """Like `wait_for_job()` for this job; Ctrl-C always reports the job id."""
-        answer = _wait(self._client, self.polling_url, poll_interval, timeout, progress, True)
+        answer = _wait(
+            self._client,
+            self.polling_url,
+            poll_interval,
+            timeout,
+            progress,
+            announce_interrupt=True,
+        )
         self.last_status = answer.get("status") or self.last_status
         return answer
 

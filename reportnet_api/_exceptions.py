@@ -169,7 +169,9 @@ def _explain(err: ReportnetAPIError) -> list[str]:
     lines = [f"{request.method} {path} failed with HTTP {status}."]
     if reason:
         lines.append(f"The server said: {reason}")
-    if status == HTTPStatus.INTERNAL_SERVER_ERROR and _is_rejected_credential_500(err.response_body):
+    if status == HTTPStatus.INTERNAL_SERVER_ERROR and _is_rejected_credential_500(
+        err.response_body
+    ):
         lines.append(
             "Likely cause: the credential was rejected upstream (a revoked or expired ApiKey "
             "shows up as a 500 like this, even for plain reads), or it was sent with the "
@@ -180,7 +182,9 @@ def _explain(err: ReportnetAPIError) -> list[str]:
             "A Bearer token sent as an ApiKey fails the same way: Bearer tokens are bare "
             'UUIDs here, not JWTs, so connect(token, scheme="Bearer").'
         )
-    elif status == HTTPStatus.INTERNAL_SERVER_ERROR and "accessReferenceEntity" in err.response_body:
+    elif (
+        status == HTTPStatus.INTERNAL_SERVER_ERROR and "accessReferenceEntity" in err.response_body
+    ):
         lines.append(
             "Likely cause: the dataflow id does not exist, or is not visible to this "
             "credential (the gateway reports this as a 500, not a 404)."

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -36,7 +37,7 @@ class AsyncReportnetClient:
         base_url: str,
         token: TokenLike,
         *,
-        token_scheme: str = "Bearer",
+        token_scheme: str = "Bearer",  # noqa: S107 - an auth scheme name, not a secret
         timeout: float | httpx.Timeout | None = DEFAULT_TIMEOUT,
         retry: RetryPolicy | None = None,
     ) -> None:
@@ -99,7 +100,7 @@ class AsyncReportnetClient:
             if not response.is_success:
                 await response.aread()
                 self._core.handle_response(response)
-            with open(dest, "wb") as fh:
+            with Path(dest).open("wb") as fh:
                 async for chunk in response.aiter_bytes():
                     fh.write(chunk)
 
