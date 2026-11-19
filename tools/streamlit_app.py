@@ -246,14 +246,14 @@ if st.button("Run", type="primary", disabled=not confirmed):
                 kwargs[name] = value
                 if name == "dest":
                     dest_value = str(value)
-    except (ValueError, Exception) as exc:  # noqa: BLE001 - surface any param error inline
+    except (ValueError, Exception) as exc:  # surface any parameter error inline
         st.error(f"Invalid parameters: {exc}")
     else:
         try:
             result = method(**kwargs)
         except ReportnetAPIError as exc:
             st.error(f"{exc.status_code} {type(exc).__name__} — {exc.response_body}")
-        except Exception as exc:  # noqa: BLE001 - surface any call error inline
+        except Exception as exc:  # surface any call error inline
             st.exception(exc)
         else:
             render_result(result, dest_value)
