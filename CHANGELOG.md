@@ -4,7 +4,7 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
-## 0.1.3 (unreleased)
+## 0.1.3 (2026-11-19)
 
 - Downloads (`client.download()` and everything built on it, such as `export_to_file`)
   write to a temporary file next to `dest` and replace `dest` only when complete: a
