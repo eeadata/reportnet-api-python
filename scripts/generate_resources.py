@@ -432,7 +432,8 @@ def render_body(op: Operation, *, is_async: bool) -> str:
     if query_items:
         pairs = ", ".join(f'"{p.wire_name}": {p.py_name}' for p in query_items)
         lines.append(f"        params = {{{pairs}}}")
-        lines.append("        params = {k: v for k, v in params.items() if v is not None}")
+        if any(not p.required or "None" in p.py_type for p in query_items):
+            lines.append("        params = {k: v for k, v in params.items() if v is not None}")
     else:
         lines.append("        params = None")
 
