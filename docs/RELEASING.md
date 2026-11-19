@@ -24,7 +24,7 @@ repository's workflow, so no API token is created or stored.
 ## Each release
 
 1. Update `version` in `pyproject.toml` and the entry in `CHANGELOG.md`.
-2. `uv run ruff check . && uv run mypy reportnet_api && uv run pytest` must pass (CI runs
+2. `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` must pass (CI runs
    them on Python 3.11 to 3.14).
 3. **Rehearse:** run the *Release* workflow by hand (Actions tab → Release → Run workflow).
    It uploads to TestPyPI. Install from there in a clean environment and import it:

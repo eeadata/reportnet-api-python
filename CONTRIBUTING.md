@@ -5,13 +5,15 @@ Thanks for helping. This is a small library, so the process is light.
 ## Set up
 
 ```
-uv sync --all-groups   # install deps + dev tools
-uv run ruff check .    # lint
-uv run mypy reportnet_api
-uv run pytest          # no network needed: HTTP is mocked
+uv sync --all-groups        # install deps + dev tools
+uv run ruff check .         # lint
+uv run ruff format --check .
+uv run mypy                 # strict: package, tests, scripts, tools
+uv run pytest               # warnings are errors; real network access fails the test
+uvx pre-commit install      # optional: run ruff and mypy on every commit
 ```
 
-All three must pass; CI runs the same commands on Python 3.11 to 3.14 and also builds the
+All of these must pass; CI runs the same commands on Python 3.11 to 3.14 and also builds the
 wheel. The docs site is built with `uv run --group docs mkdocs build --strict`.
 
 ## Generated files: do not hand-edit

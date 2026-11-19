@@ -217,8 +217,8 @@ the code here is MIT-licensed (see `LICENSE`).
 
 ```
 uv sync --all-groups   # install deps + dev tools
-uv run ruff check .    # lint
-uv run mypy reportnet_api
+uv run ruff check . && uv run ruff format --check .
+uv run mypy            # strict, whole project
 uv run pytest
 ```
 
