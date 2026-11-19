@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from pathlib import Path
 
 import httpx
 import pytest
@@ -134,7 +135,7 @@ def _uploaded(request: httpx.Request) -> bytes:
     return body[start : body.index(b"\r\n--", start)]
 
 
-def test_sync_lead_reporter_routes(tmp_path) -> None:
+def test_sync_lead_reporter_routes(tmp_path: Path) -> None:
     upload = tmp_path / "Lead-Reporters.csv"
     upload.write_bytes(EXPORT_CSV)
     with respx.mock(base_url=BASE_URL) as mock:
@@ -186,7 +187,7 @@ def test_sync_lead_reporter_routes(tmp_path) -> None:
     assert validate.calls.last.request.content == b""
 
 
-def test_async_lead_reporter_routes(tmp_path) -> None:
+def test_async_lead_reporter_routes(tmp_path: Path) -> None:
     upload = tmp_path / "list.CSV"
     upload.write_bytes(EXPORT_CSV)
 
@@ -283,7 +284,7 @@ def test_create_lead_reporter_refuses_a_representative_of_another_dataflow() -> 
     asyncio.run(run())
 
 
-def test_import_normalises_line_ends_and_blank_lines(tmp_path) -> None:
+def test_import_normalises_line_ends_and_blank_lines(tmp_path: Path) -> None:
     upload = tmp_path / "crlf.csv"
     upload.write_bytes(b'\xef\xbb\xbfRepresenting,Email\r\n"AT","a@example.org"\r\n\r\n"BE",""\r\n')
     with respx.mock(base_url=BASE_URL) as mock:
@@ -308,7 +309,9 @@ def test_import_normalises_line_ends_and_blank_lines(tmp_path) -> None:
         ("list.csv", b'Representing,Email\n"AT"\n', "exactly two"),
     ],
 )
-def test_import_refuses_files_reportnet_would_misread(tmp_path, name, content, message) -> None:
+def test_import_refuses_files_reportnet_would_misread(
+    tmp_path: Path, name: str, content: bytes, message: str
+) -> None:
     upload = tmp_path / name
     upload.write_bytes(content)
     with respx.mock(base_url=BASE_URL, assert_all_called=False) as mock:

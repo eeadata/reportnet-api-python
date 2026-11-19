@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 import httpx
 import pytest
@@ -16,7 +17,7 @@ OTHER = [
 
 @pytest.mark.parametrize("url", OTHER)
 @respx.mock
-def test_sync_request_and_download_refuse_other_origin(url, tmp_path):
+def test_sync_request_and_download_refuse_other_origin(url: str, tmp_path: Path) -> None:
     route = respx.route().respond(200, json={})
     with ReportnetClient(BASE, "SECRET") as c:
         with pytest.raises(ValueError, match="Refusing to send the credential"):
@@ -28,10 +29,10 @@ def test_sync_request_and_download_refuse_other_origin(url, tmp_path):
 
 @pytest.mark.parametrize("url", OTHER)
 @respx.mock
-def test_async_request_and_download_refuse_other_origin(url, tmp_path):
+def test_async_request_and_download_refuse_other_origin(url: str, tmp_path: Path) -> None:
     route = respx.route().respond(200, json={})
 
-    async def run():
+    async def run() -> None:
         async with AsyncReportnetClient(BASE, "SECRET") as c:
             with pytest.raises(ValueError, match="Refusing to send the credential"):
                 await c.request("GET", url)
@@ -43,7 +44,7 @@ def test_async_request_and_download_refuse_other_origin(url, tmp_path):
 
 
 @respx.mock
-def test_protocol_relative_url_stays_on_the_configured_host():
+def test_protocol_relative_url_stays_on_the_configured_host() -> None:
     # httpx reads `//host/x` as a path on the base host, so nothing leaves it.
     route = respx.route(host="api.example.invalid").respond(200, json={})
     with ReportnetClient(BASE, "SECRET") as c:
@@ -52,7 +53,7 @@ def test_protocol_relative_url_stays_on_the_configured_host():
 
 
 @respx.mock
-def test_same_origin_paths_and_absolute_urls_still_work():
+def test_same_origin_paths_and_absolute_urls_still_work() -> None:
     route = respx.get(f"{BASE}/orchestrator/jobs/pollForJobStatus/1").respond(200, json={"ok": 1})
     with ReportnetClient(BASE, "SECRET") as c:
         assert c.request("GET", "/orchestrator/jobs/pollForJobStatus/1").json() == {"ok": 1}
@@ -62,12 +63,12 @@ def test_same_origin_paths_and_absolute_urls_still_work():
     assert all(call.request.headers["authorization"].endswith("SECRET") for call in route.calls)
 
 
-def test_polling_url_on_other_host_is_not_followed():
+def test_polling_url_on_other_host_is_not_followed() -> None:
     from reportnet_api.jobs import wait_for_job
 
-    seen = []
+    seen: list[str] = []
 
-    def handler(request):
+    def handler(request: httpx.Request) -> httpx.Response:
         seen.append(str(request.url))
         return httpx.Response(200, json={"status": "FINISHED"})
 
@@ -78,7 +79,7 @@ def test_polling_url_on_other_host_is_not_followed():
     assert seen == []
 
 
-def test_message_names_scheme_and_port_when_only_they_differ():
+def test_message_names_scheme_and_port_when_only_they_differ() -> None:
     with ReportnetClient(BASE, "SECRET") as c:
         with pytest.raises(
             ValueError, match=r"to http://api\.example\.invalid:.*\(https://api\.example\.invalid\)"
@@ -86,14 +87,14 @@ def test_message_names_scheme_and_port_when_only_they_differ():
             c.request("GET", "http://api.example.invalid/x")
 
 
-def test_plain_http_base_url_warns_but_localhost_does_not(recwarn):
+def test_plain_http_base_url_warns_but_localhost_does_not(recwarn: pytest.WarningsRecorder) -> None:
     with pytest.warns(UserWarning, match="plain http"):
         ReportnetClient("http://api.example.invalid", "SECRET").close()
     ReportnetClient("http://127.0.0.1:8080", "SECRET").close()
     assert not [w for w in recwarn if "plain http" in str(w.message)]
 
 
-def test_insecure_warning_points_at_the_callers_line_through_easy_connect():
+def test_insecure_warning_points_at_the_callers_line_through_easy_connect() -> None:
     from reportnet_api import easy
 
     with pytest.warns(UserWarning, match="plain http") as caught:
@@ -102,12 +103,12 @@ def test_insecure_warning_points_at_the_callers_line_through_easy_connect():
 
 
 @pytest.mark.parametrize("url", ["http://127.0.0.2:8000", "http://app.localhost", "http://[::1]:9"])
-def test_any_loopback_address_counts_as_local(url, recwarn):
+def test_any_loopback_address_counts_as_local(url: str, recwarn: pytest.WarningsRecorder) -> None:
     ReportnetClient(url, "SECRET").close()
     assert not [w for w in recwarn if "plain http" in str(w.message)]
 
 
-def test_ipv6_origin_is_bracketed():
+def test_ipv6_origin_is_bracketed() -> None:
     with ReportnetClient("https://[::1]:9443", "SECRET") as c:
         with pytest.raises(ValueError, match=r"\(https://\[::1\]:9443\)"):
             c.request("GET", "https://evil.example/x")

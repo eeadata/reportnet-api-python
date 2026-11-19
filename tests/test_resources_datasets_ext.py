@@ -60,7 +60,7 @@ def test_async_update_dataset_name() -> None:
     assert asyncio.run(run()).calls.last.request.url.params["datasetName"] == "Reporting data"
 
 
-def test_export_zip_csv_to_file_polls_then_downloads(tmp_path) -> None:
+def test_export_zip_csv_to_file_polls_then_downloads(tmp_path: Path) -> None:
     import pytest
 
     from reportnet_api.resources.datasets_ext import ExportJobError
@@ -107,7 +107,7 @@ def test_export_zip_csv_to_file_polls_then_downloads(tmp_path) -> None:
             client.datasets.export_zip_csv_to_file(1, dataflow_id=2, dest=dest, poll_interval=0)
 
 
-def test_export_zip_csv_to_file_times_out(tmp_path) -> None:
+def test_export_zip_csv_to_file_times_out(tmp_path: Path) -> None:
     import pytest
 
     from reportnet_api.resources.datasets_ext import ExportJobError
@@ -127,7 +127,7 @@ def test_export_zip_csv_to_file_times_out(tmp_path) -> None:
             )
 
 
-def test_async_export_zip_csv_to_file(tmp_path) -> None:
+def test_async_export_zip_csv_to_file(tmp_path: Path) -> None:
     poll = "/orchestrator/jobs/pollForJobStatus/9"
     dest = tmp_path / "out.zip"
 

@@ -115,10 +115,3 @@ follow_imports_for_stubs = true
 # Only scripts/make_logo.py uses these, installed ad hoc with `uv run --with`.
 module = ["cairosvg", "fontTools.*"]
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-# TEMPORARY: tests are being annotated file by file; remove this block when done.
-module = ["tests.*"]
-disallow_untyped_defs = false
-disallow_untyped_calls = false
-disallow_incomplete_defs = false

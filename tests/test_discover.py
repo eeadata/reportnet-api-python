@@ -1,37 +1,39 @@
+import pytest
+
 import reportnet_api
 from reportnet_api import easy, find
 
 
-def test_find_exported_and_matches_names():
+def test_find_exported_and_matches_names() -> None:
     assert reportnet_api.find is find
     calls = {m.call for m in find("export")}
     assert "easy.export_table" in calls
     assert "client.datasets.etl_export_dataset" in calls
 
 
-def test_find_all_words_and_underscore_equivalence():
+def test_find_all_words_and_underscore_equivalence() -> None:
     assert {m.call for m in find("import_file")} == {m.call for m in find("import file")}
     assert all("read" in m.call or "read" in m.summary.lower() for m in find("read table"))
 
 
-def test_find_is_case_insensitive_and_covers_handles():
+def test_find_is_case_insensitive_and_covers_handles() -> None:
     calls = {m.call for m in find("UPLOAD")}
     assert "ds.upload" in calls
 
 
-def test_find_empty_and_no_match():
+def test_find_empty_and_no_match() -> None:
     assert find("") == []
     assert "No match" in str(find("zzzqqq"))
 
 
-def test_summary_never_a_roles_table_and_str_is_a_table():
+def test_summary_never_a_roles_table_and_str_is_a_table() -> None:
     hits = find("etl")
     assert hits and all(not m.summary.lower().startswith("allowed roles") for m in hits)
     assert str(hits).splitlines()[0].startswith(hits[0].call)
     assert hits[0].doc_link.startswith("docs/reference/datasets.md#")
 
 
-def test_guide_prints_and_returns(capsys):
+def test_guide_prints_and_returns(capsys: pytest.CaptureFixture[str]) -> None:
     text = easy.guide()
     assert capsys.readouterr().out.strip() == text.strip()
     assert "find(" in text
@@ -39,7 +41,7 @@ def test_guide_prints_and_returns(capsys):
     assert capsys.readouterr().out == ""
 
 
-def test_guide_names_real_helpers():
+def test_guide_names_real_helpers() -> None:
     for name in (
         "connect_interactive",
         "check_access",

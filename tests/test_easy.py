@@ -1,16 +1,19 @@
+from collections.abc import Callable
+from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import httpx
 import pytest
 import respx
 
-from reportnet_api import AsyncReportnetClient, RetryPolicy, easy
+from reportnet_api import AsyncReportnetClient, ReportnetClient, RetryPolicy, easy
 from reportnet_api.jobs import JobError
 
 BASE = "https://api.reportnet.europa.eu"
 
 
-def test_connect_detects_scheme(monkeypatch):
+def test_connect_detects_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("REPORTNET_API_KEY", raising=False)
     with pytest.raises(ValueError, match="No credential"):
         easy.connect()
@@ -22,7 +25,7 @@ def test_connect_detects_scheme(monkeypatch):
 
 
 @respx.mock
-def test_list_datasets_flattens():
+def test_list_datasets_flattens() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(
         json={
             "designDatasets": [{"id": 1, "dataSetName": "d"}],
@@ -34,7 +37,9 @@ def test_list_datasets_flattens():
     assert df["kind"].tolist() == ["design", "reporting"]
 
 
-def _row_offset_backend(rows: list[str], *, total: bool = True):
+def _row_offset_backend(
+    rows: list[str], *, total: bool = True
+) -> Callable[[httpx.Request], httpx.Response]:
     """Fake ETL export with the live semantics: `offset` is a 0-based row offset."""
 
     def page(request: httpx.Request) -> httpx.Response:
@@ -53,7 +58,7 @@ def _row_offset_backend(rows: list[str], *, total: bool = True):
 
 
 @respx.mock
-def test_read_tables_pages_until_complete(no_schema_check):
+def test_read_tables_pages_until_complete(no_schema_check: None) -> None:
     # Live (sandbox, 2026-10-27): offset is a row offset; offset=1 would skip row 0.
     route = respx.get(url__regex=rf"{BASE}/dataset/v1/.*").mock(
         side_effect=_row_offset_backend(["r0", "r1", "r2", "r3", "r4"])
@@ -65,7 +70,7 @@ def test_read_tables_pages_until_complete(no_schema_check):
 
 
 @respx.mock
-def test_read_tables_pages_without_total_records(no_schema_check):
+def test_read_tables_pages_without_total_records(no_schema_check: None) -> None:
     # Backend omits totalRecords unless a filter (e.g. tableSchemaId) is given.
     route = respx.get(url__regex=rf"{BASE}/dataset/v1/.*").mock(
         side_effect=_row_offset_backend(["a", "b", "c", "d", "e"], total=False)
@@ -75,7 +80,7 @@ def test_read_tables_pages_without_total_records(no_schema_check):
     assert route.call_count == 3
 
 
-def test_read_table_needs_name_when_ambiguous(monkeypatch):
+def test_read_table_needs_name_when_ambiguous(monkeypatch: pytest.MonkeyPatch) -> None:
     import pandas as pd
 
     monkeypatch.setattr(
@@ -85,7 +90,7 @@ def test_read_table_needs_name_when_ambiguous(monkeypatch):
         easy.read_table(None, 1, 1)  # type: ignore[arg-type]
 
 
-def test_placeholder_ids_give_clear_error():
+def test_placeholder_ids_give_clear_error() -> None:
     with pytest.raises(ValueError, match="list_dataflows"):
         easy.list_datasets(easy.connect("k"), None)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="dataset_id"):
@@ -93,7 +98,7 @@ def test_placeholder_ids_give_clear_error():
 
 
 @respx.mock
-def test_forbidden_gets_hint():
+def test_forbidden_gets_hint() -> None:
     from reportnet_api import ForbiddenError
 
     respx.get(f"{BASE}/dataflow/v1/5").respond(403)
@@ -102,20 +107,20 @@ def test_forbidden_gets_hint():
 
 
 @respx.mock
-def test_list_datasets_empty_body_is_not_no_datasets():
+def test_list_datasets_empty_body_is_not_no_datasets() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(200)
     with pytest.raises(LookupError, match="unknown or this credential has no access"):
         easy.list_datasets(easy.connect("k"), 5)
 
 
 @respx.mock
-def test_list_datasets_real_empty_dataflow_is_empty_frame():
+def test_list_datasets_real_empty_dataflow_is_empty_frame() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(json={"id": 5, "reportingDatasets": []})
     assert easy.list_datasets(easy.connect("k"), 5).empty
 
 
 @pytest.fixture
-def no_schema_check(monkeypatch):
+def no_schema_check(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(easy, "_schema_table_names", lambda *a, **k: None)
 
 
@@ -124,7 +129,7 @@ def _rec(rid: str, value: str) -> dict[str, Any]:
 
 
 @respx.mock
-def test_read_tables_stops_and_dedups_when_offset_is_ignored(no_schema_check):
+def test_read_tables_stops_and_dedups_when_offset_is_ignored(no_schema_check: None) -> None:
     # Backend that ignores `offset`: same full page every time must not loop forever.
     recs = [_rec("r1", "x"), _rec("r2", "y")]
     route = respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
@@ -137,7 +142,7 @@ def test_read_tables_stops_and_dedups_when_offset_is_ignored(no_schema_check):
 
 
 @respx.mock
-def test_read_tables_warns_when_total_differs(no_schema_check):
+def test_read_tables_warns_when_total_differs(no_schema_check: None) -> None:
     pages = [
         httpx.Response(
             200,
@@ -154,7 +159,7 @@ def test_read_tables_warns_when_total_differs(no_schema_check):
 
 
 @respx.mock
-def test_read_tables_warns_on_table_missing_from_export(monkeypatch):
+def test_read_tables_warns_on_table_missing_from_export(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(easy, "_schema_table_names", lambda *a, **k: {"T", "U"})
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
         json={"tables": [{"tableName": "T", "records": [_rec("r1", "x")]}]}
@@ -164,7 +169,7 @@ def test_read_tables_warns_on_table_missing_from_export(monkeypatch):
 
 
 @respx.mock
-def test_read_tables_warns_when_export_has_no_rows(no_schema_check):
+def test_read_tables_warns_when_export_has_no_rows(no_schema_check: None) -> None:
     # Live (sandbox, 2026-11-06): a data-lake dataset answers 200 with empty tables.
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
         json={"tables": [{"tableName": "T", "records": []}]}
@@ -174,7 +179,7 @@ def test_read_tables_warns_when_export_has_no_rows(no_schema_check):
     assert out["T"].empty
 
 
-def _vrow(code, rule):
+def _vrow(code: str, rule: str) -> dict[str, Any]:
     return {
         "shortCode": code,
         "levelError": "ERROR",
@@ -188,7 +193,7 @@ def _vrow(code, rule):
 
 
 @respx.mock
-def test_validation_errors_uses_lake_route_and_pages():
+def test_validation_errors_uses_lake_route_and_pages() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": True})
     old = respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*")
 
@@ -207,7 +212,7 @@ def test_validation_errors_uses_lake_route_and_pages():
 
 
 @respx.mock
-def test_validation_errors_old_route_and_empty():
+def test_validation_errors_old_route_and_empty() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": False})
     respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*").respond(
         json={"errors": [], "totalRecords": 0}
@@ -217,7 +222,7 @@ def test_validation_errors_old_route_and_empty():
 
 
 @respx.mock
-def test_export_validations_saves_file(tmp_path):
+def test_export_validations_saves_file(tmp_path: Path) -> None:
     respx.post(f"{BASE}/validation/export/9").respond(200)
     respx.get(url__regex=rf"{BASE}/validation/downloadFile/9.*").respond(
         content=b"Entity,Table\nTABLE,T\n"
@@ -227,7 +232,7 @@ def test_export_validations_saves_file(tmp_path):
 
 
 @respx.mock
-def test_validation_summary_groups_by_table_and_level():
+def test_validation_summary_groups_by_table_and_level() -> None:
     respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": False})
     respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*").respond(
         json={"errors": [_vrow("A", "r1"), _vrow("B", "r2")], "totalRecords": 2}
@@ -237,7 +242,7 @@ def test_validation_summary_groups_by_table_and_level():
 
 
 @respx.mock
-def test_validate_and_wait_waits_for_new_notification(monkeypatch):
+def test_validate_and_wait_waits_for_new_notification(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
     other = {
@@ -260,7 +265,7 @@ def test_validate_and_wait_waits_for_new_notification(monkeypatch):
 
 
 @respx.mock
-def test_validate_and_wait_times_out(monkeypatch):
+def test_validate_and_wait_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     respx.get(f"{BASE}/notification/findUserNotifications").respond(json={"userNotifications": []})
     respx.put(f"{BASE}/orchestrator/jobs/addValidationJob/9").respond(200)
@@ -271,11 +276,11 @@ def test_validate_and_wait_times_out(monkeypatch):
 JWT = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln-_x"
 
 
-def _auth(client):
+def _auth(client: ReportnetClient) -> str:
     return client._core.build_headers()["Authorization"]
 
 
-def test_connect_detects_raw_jwt_and_scheme_override(monkeypatch):
+def test_connect_detects_raw_jwt_and_scheme_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("REPORTNET_API_KEY", raising=False)
     assert _auth(easy.connect(JWT)) == f"Bearer {JWT}"
     assert _auth(easy.connect("a.b")) == "ApiKey a.b"  # two parts: not a JWT
@@ -286,7 +291,7 @@ def test_connect_detects_raw_jwt_and_scheme_override(monkeypatch):
         easy.connect("k", scheme="Basic")
 
 
-def test_connect_token_provider_and_retry():
+def test_connect_token_provider_and_retry() -> None:
     tokens = iter(["t1", "t2"])
     c = easy.connect(token_provider=lambda: next(tokens))
     assert _auth(c) == "Bearer t1"
@@ -301,7 +306,7 @@ def test_connect_token_provider_and_retry():
     assert easy.connect("k", retry=policy)._retry is policy
 
 
-def test_connect_interactive_uses_getpass(monkeypatch):
+def test_connect_interactive_uses_getpass(monkeypatch: pytest.MonkeyPatch) -> None:
     prompts: list[str] = []
 
     def getpass(p: str) -> str:
@@ -314,7 +319,7 @@ def test_connect_interactive_uses_getpass(monkeypatch):
     assert len(prompts) == 1 and JWT not in prompts[0]
 
 
-def test_client_repr_hides_secret():
+def test_client_repr_hides_secret() -> None:
     c = easy.connect("sekrit-key", base_url=BASE)
     assert "sekrit-key" not in repr(c)
     assert repr(c) == "ReportnetClient(base_url='https://api.reportnet.europa.eu', scheme='ApiKey')"
@@ -323,7 +328,7 @@ def test_client_repr_hides_secret():
 
 
 @respx.mock
-def test_check_access_alive_and_dataflow(capsys):
+def test_check_access_alive_and_dataflow(capsys: pytest.CaptureFixture[str]) -> None:
     respx.post(f"{BASE}/dataflow/getDataflows").respond(json={"dataflows": []})
     respx.get(f"{BASE}/dataflow/v1/5").respond(json={"designDatasets": [{"id": 1}]})
     rows = easy.check_access(easy.connect("secret-key"), 5)
@@ -339,7 +344,7 @@ def test_check_access_alive_and_dataflow(capsys):
 
 
 @respx.mock
-def test_check_access_dead_key_skips_dataflow():
+def test_check_access_dead_key_skips_dataflow() -> None:
     respx.post(f"{BASE}/dataflow/getDataflows").respond(
         500, text='{"status":500,"message":"401 UNAUTHORIZED"}{"message":"No message available"}'
     )
@@ -351,7 +356,7 @@ def test_check_access_dead_key_skips_dataflow():
 
 
 @respx.mock
-def test_check_access_access_denied_500_is_rejected_and_hints_scheme():
+def test_check_access_access_denied_500_is_rejected_and_hints_scheme() -> None:
     # Live (2026-10-26): the listing route answers a dead key, or a Bearer token
     # sent as ApiKey, with this body.
     respx.post(f"{BASE}/dataflow/getDataflows").respond(
@@ -365,7 +370,7 @@ def test_check_access_access_denied_500_is_rejected_and_hints_scheme():
 
 
 @respx.mock
-def test_check_access_dataflow_verdicts():
+def test_check_access_dataflow_verdicts() -> None:
     respx.post(f"{BASE}/dataflow/getDataflows").respond(json={})
     respx.get(f"{BASE}/dataflow/v1/1").respond(
         500, json={"message": "status 500 reading DataFlowControllerZuul#accessReferenceEntity(X)"}
@@ -381,13 +386,13 @@ def test_check_access_dataflow_verdicts():
 
 
 @respx.mock
-def test_check_access_network_error():
+def test_check_access_network_error() -> None:
     respx.post(f"{BASE}/dataflow/getDataflows").mock(side_effect=httpx.ConnectError("down"))
     rows = easy.check_access(easy.connect("k"), show=False)
     assert rows[1]["result"] == "unknown"
 
 
-def test_connect_scheme_from_env(monkeypatch):
+def test_connect_scheme_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     uuid = "11111111-2222-3333-4444-555555555555"
     monkeypatch.setenv("REPORTNET_TOKEN_SCHEME", "bearer")
     assert "scheme='Bearer'" in repr(easy.connect(uuid))
@@ -400,19 +405,22 @@ def test_connect_scheme_from_env(monkeypatch):
     assert "scheme='Bearer'" in repr(easy.connect(token_provider=lambda: uuid))
 
 
-def test_connect_rejects_bad_env_scheme(monkeypatch):
+def test_connect_rejects_bad_env_scheme(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("REPORTNET_TOKEN_SCHEME", "Basic")
     with pytest.raises(ValueError, match="REPORTNET_TOKEN_SCHEME"):
         easy.connect("k")
 
 
 @respx.mock
-def test_read_records_pages_and_needs_no_pandas(no_schema_check, monkeypatch):
+def test_read_records_pages_and_needs_no_pandas(
+    no_schema_check: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import builtins
 
     real_import = builtins.__import__
 
-    def no_pandas(name, *a, **k):
+    # Stands in for builtins.__import__, whose other parameters vary; forwarded as is.
+    def no_pandas(name: str, *a: Any, **k: Any) -> ModuleType:
         if name == "pandas" or name.startswith("pandas."):
             raise ImportError("pandas is blocked in this test")
         return real_import(name, *a, **k)
@@ -427,7 +435,7 @@ def test_read_records_pages_and_needs_no_pandas(no_schema_check, monkeypatch):
 
 
 @respx.mock
-def test_read_records_table_selection(no_schema_check):
+def test_read_records_table_selection(no_schema_check: None) -> None:
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").mock(side_effect=_row_offset_backend(["x"]))
     client = easy.connect("k")
     assert easy.read_records(client, 7, 1, table_name="T")[0]["a"] == "x"
@@ -436,7 +444,7 @@ def test_read_records_table_selection(no_schema_check):
         easy.read_records(client, 7, 1, table_name="Nope")
 
 
-def test_read_table_without_name_ignores_empty_tables(monkeypatch):
+def test_read_table_without_name_ignores_empty_tables(monkeypatch: pytest.MonkeyPatch) -> None:
     import pandas as pd
 
     tables = {"Empty": pd.DataFrame(), "Full": pd.DataFrame({"a": [1]})}
@@ -446,13 +454,13 @@ def test_read_table_without_name_ignores_empty_tables(monkeypatch):
     assert easy.read_records(None, 1, 1) == [{"a": 1}]  # type: ignore[arg-type]
 
 
-def test_page_size_must_be_positive():
+def test_page_size_must_be_positive() -> None:
     with pytest.raises(ValueError, match="page_size"):
         easy.read_records(easy.connect("k"), 7, 1, page_size=0)
 
 
 @respx.mock
-def test_warnings_point_at_the_callers_line(no_schema_check):
+def test_warnings_point_at_the_callers_line(no_schema_check: None) -> None:
     import warnings
 
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(json={"tables": []})
@@ -462,7 +470,7 @@ def test_warnings_point_at_the_callers_line(no_schema_check):
     assert caught and all(w.filename == __file__ for w in caught)
 
 
-def test_read_table_when_every_table_is_empty(monkeypatch):
+def test_read_table_when_every_table_is_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     import pandas as pd
 
     monkeypatch.setattr(
@@ -472,7 +480,7 @@ def test_read_table_when_every_table_is_empty(monkeypatch):
         easy.read_table(None, 1, 1)  # type: ignore[arg-type]
 
 
-def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check):
+def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check: None) -> None:
     import numpy as np
 
     client = easy.connect("k")
@@ -486,7 +494,7 @@ def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check):
 
 
 @respx.mock
-def test_validation_errors_explicit_lake_skips_detection():
+def test_validation_errors_explicit_lake_skips_detection() -> None:
     flow = respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": False})
     old = respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*")
     dl = respx.get(url__regex=rf"{BASE}/validation/listGroupValidationsDL/.*").respond(
@@ -498,7 +506,7 @@ def test_validation_errors_explicit_lake_skips_detection():
 
 
 @respx.mock
-def test_validation_errors_explicit_relational_skips_detection():
+def test_validation_errors_explicit_relational_skips_detection() -> None:
     flow = respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": True})
     dl = respx.get(url__regex=rf"{BASE}/validation/listGroupValidationsDL/.*")
     old = respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*").respond(
@@ -510,7 +518,7 @@ def test_validation_errors_explicit_relational_skips_detection():
 
 
 @respx.mock
-def test_validate_and_wait_passes_data_lake_through(monkeypatch):
+def test_validate_and_wait_passes_data_lake_through(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
     old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
     new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}

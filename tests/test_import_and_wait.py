@@ -1,6 +1,8 @@
 """Tests for import_file_and_wait (sync + async), the statistics check and easy.import_file."""
 
 import asyncio
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -24,17 +26,17 @@ SAME_COUNT_NEW_DATE = {T: {"lastImportDate": 300, "numberOfRecordsImported": 1}}
 
 
 @pytest.fixture
-def csv(tmp_path):
+def csv(tmp_path: Path) -> Path:
     f = tmp_path / "a.csv"
     f.write_text("x\n1\n")
     return f
 
 
-def _job(mock):
+def _job(mock: respx.MockRouter) -> None:
     mock.post(BIG).mock(return_value=httpx.Response(200, json={"jobId": 9, "pollingUrl": POLL}))
 
 
-def _stats(mock, *answers):
+def _stats(mock: respx.MockRouter, *answers: dict[str, Any]) -> respx.Route:
     return mock.get(STATS).mock(side_effect=[httpx.Response(200, json=a) for a in answers])
 
 
@@ -48,7 +50,7 @@ def test_statistics_changed_logic() -> None:
     assert import_statistics_changed(ONE, TWO, T)
 
 
-def test_big_file_waits_for_job_then_statistics(csv) -> None:
+def test_big_file_waits_for_job_then_statistics(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _job(mock)
         mock.get(POLL).mock(
@@ -65,7 +67,7 @@ def test_big_file_waits_for_job_then_statistics(csv) -> None:
     assert result == TWO
 
 
-def test_small_file_polls_statistics_only(csv) -> None:
+def test_small_file_polls_statistics_only(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post(SMALL).mock(return_value=httpx.Response(200))
         _stats(mock, EMPTY, EMPTY, ONE)
@@ -74,7 +76,7 @@ def test_small_file_polls_statistics_only(csv) -> None:
     assert result == ONE
 
 
-def test_job_failure(csv) -> None:
+def test_job_failure(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _job(mock)
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": "FAILED"}))
@@ -84,7 +86,7 @@ def test_job_failure(csv) -> None:
                 client.datasets.import_file_and_wait(1, csv, poll_interval=0)
 
 
-def test_timeout_when_statistics_never_change(csv) -> None:
+def test_timeout_when_statistics_never_change(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post(SMALL).mock(return_value=httpx.Response(200))
         mock.get(STATS).mock(return_value=httpx.Response(200, json=ONE))
@@ -95,7 +97,7 @@ def test_timeout_when_statistics_never_change(csv) -> None:
                 )
 
 
-def test_job_timeout(csv) -> None:
+def test_job_timeout(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _job(mock)
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": "QUEUED"}))
@@ -105,7 +107,7 @@ def test_job_timeout(csv) -> None:
                 client.datasets.import_file_and_wait(1, csv, poll_interval=0, timeout=0)
 
 
-def test_trust_job_without_statistics_confirmation(csv) -> None:
+def test_trust_job_without_statistics_confirmation(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _job(mock)
         mock.get(POLL).mock(return_value=httpx.Response(200, json={"status": "FINISHED"}))
@@ -117,7 +119,9 @@ def test_trust_job_without_statistics_confirmation(csv) -> None:
     assert result == ONE
 
 
-def test_finished_job_with_unchanged_statistics_is_success(csv, monkeypatch) -> None:
+def test_finished_job_with_unchanged_statistics_is_success(
+    csv: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(datasets_ext, "_STATS_GRACE", 0.0)
     with respx.mock(base_url=BASE_URL) as mock:
         _job(mock)
@@ -129,7 +133,9 @@ def test_finished_job_with_unchanged_statistics_is_success(csv, monkeypatch) -> 
 
 
 @pytest.mark.parametrize("body", [b'{"jobId": 9}', b"null"])
-def test_no_polling_url_with_trusting_job_raises_and_says_upload_was_sent(csv, body) -> None:
+def test_no_polling_url_with_trusting_job_raises_and_says_upload_was_sent(
+    csv: Path, body: bytes
+) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post(BIG).mock(return_value=httpx.Response(200, content=body))
         _stats(mock, EMPTY)
@@ -138,7 +144,7 @@ def test_no_polling_url_with_trusting_job_raises_and_says_upload_was_sent(csv, b
                 client.datasets.import_file_and_wait(1, csv, confirm_statistics=False)
 
 
-def test_non_dict_job_answer_falls_back_to_statistics(csv) -> None:
+def test_non_dict_job_answer_falls_back_to_statistics(csv: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post(BIG).mock(return_value=httpx.Response(200, content=b"null"))
         _stats(mock, EMPTY, ONE)
@@ -147,7 +153,7 @@ def test_non_dict_job_answer_falls_back_to_statistics(csv) -> None:
     assert result == ONE
 
 
-def test_async_success_failure_and_timeout(csv) -> None:
+def test_async_success_failure_and_timeout(csv: Path) -> None:
     import asyncio
 
     async def run() -> None:
@@ -175,7 +181,7 @@ def test_async_success_failure_and_timeout(csv) -> None:
     asyncio.run(run())
 
 
-def test_easy_import_file_checks_and_runs(csv) -> None:
+def test_easy_import_file_checks_and_runs(csv: Path) -> None:
     client = easy.connect("k", base_url=BASE_URL)
     with pytest.raises(ValueError, match="dataset_id"):
         easy.import_file(client, 0, 2, csv)
@@ -188,7 +194,7 @@ def test_easy_import_file_checks_and_runs(csv) -> None:
         assert easy.import_file(client, 1, 2, csv, timeout=5, check=False) == ONE
 
 
-def test_easy_import_file_403_hint(csv) -> None:
+def test_easy_import_file_403_hint(csv: Path) -> None:
     client = easy.connect("k", base_url=BASE_URL)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get(STATS).mock(return_value=httpx.Response(403))
@@ -213,7 +219,7 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     return now
 
 
-def _slow_upload(clock: list[float]):
+def _slow_upload(clock: list[float]) -> Callable[[httpx.Request], httpx.Response]:
     def upload(request: httpx.Request) -> httpx.Response:
         clock[0] += 1000  # longer than the whole timeout below
         return httpx.Response(200)
@@ -221,7 +227,7 @@ def _slow_upload(clock: list[float]):
     return upload
 
 
-def test_timeout_starts_after_the_upload(csv, clock) -> None:
+def test_timeout_starts_after_the_upload(csv: Path, clock: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post(SMALL).mock(side_effect=_slow_upload(clock))
         _stats(mock, EMPTY, EMPTY, ONE)  # baseline, not merged yet, merged
@@ -232,7 +238,7 @@ def test_timeout_starts_after_the_upload(csv, clock) -> None:
     assert result == ONE
 
 
-def test_async_timeout_starts_after_the_upload(csv, clock) -> None:
+def test_async_timeout_starts_after_the_upload(csv: Path, clock: list[float]) -> None:
     async def run() -> dict[str, Any]:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.post(SMALL).mock(side_effect=_slow_upload(clock))

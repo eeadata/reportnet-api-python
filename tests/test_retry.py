@@ -1,7 +1,9 @@
 """Tests for the opt-in RetryPolicy (sync + async clients)."""
 
 import asyncio
+from collections.abc import Iterator
 from datetime import UTC
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -23,7 +25,7 @@ POLICY = RetryPolicy(retries=3, backoff=0.5, max_delay=4.0)
 
 
 @pytest.fixture
-def sleeps(monkeypatch):
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     calls: list[float] = []
     monkeypatch.setattr("reportnet_api.client.time.sleep", calls.append)
 
@@ -38,7 +40,7 @@ def _client(policy: RetryPolicy | None = POLICY) -> ReportnetClient:
     return ReportnetClient(base_url=BASE_URL, token="t", retry=policy)
 
 
-def test_no_policy_means_no_retry(sleeps) -> None:
+def test_no_policy_means_no_retry(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/x").mock(return_value=httpx.Response(503))
         with _client(None) as client, pytest.raises(ServerError):
@@ -47,7 +49,7 @@ def test_no_policy_means_no_retry(sleeps) -> None:
     assert sleeps == []
 
 
-def test_get_503_is_retried_with_backoff_then_succeeds(sleeps) -> None:
+def test_get_503_is_retried_with_backoff_then_succeeds(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/x").mock(
             side_effect=[httpx.Response(503), httpx.Response(502), httpx.Response(200, json={})]
@@ -58,7 +60,7 @@ def test_get_503_is_retried_with_backoff_then_succeeds(sleeps) -> None:
     assert sleeps == [0.5, 1.0]
 
 
-def test_retries_exhausted_raises_last_error(sleeps) -> None:
+def test_retries_exhausted_raises_last_error(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/x").mock(return_value=httpx.Response(503))
         with _client() as client, pytest.raises(ServerError):
@@ -67,7 +69,7 @@ def test_retries_exhausted_raises_last_error(sleeps) -> None:
     assert sleeps == [0.5, 1.0, 2.0]
 
 
-def test_backoff_is_capped(sleeps) -> None:
+def test_backoff_is_capped(sleeps: list[float]) -> None:
     policy = RetryPolicy(retries=4, backoff=1.0, max_delay=3.0)
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get("/x").mock(return_value=httpx.Response(503))
@@ -76,7 +78,7 @@ def test_backoff_is_capped(sleeps) -> None:
     assert sleeps == [1.0, 2.0, 3.0, 3.0]
 
 
-def test_retry_after_replaces_backoff_and_is_capped(sleeps) -> None:
+def test_retry_after_replaces_backoff_and_is_capped(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get("/x").mock(
             side_effect=[
@@ -90,7 +92,7 @@ def test_retry_after_replaces_backoff_and_is_capped(sleeps) -> None:
     assert sleeps == [2.0, 4.0]
 
 
-def test_429_still_raises_typed_error_when_exhausted(sleeps) -> None:
+def test_429_still_raises_typed_error_when_exhausted(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get("/x").mock(return_value=httpx.Response(429, headers={"Retry-After": "1"}))
         with _client(RetryPolicy(retries=1)) as client:
@@ -100,7 +102,7 @@ def test_429_still_raises_typed_error_when_exhausted(sleeps) -> None:
 
 
 @pytest.mark.parametrize("status", [500, 423, 404, 403])
-def test_other_statuses_are_never_retried(sleeps, status: int) -> None:
+def test_other_statuses_are_never_retried(sleeps: list[float], status: int) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/x").mock(return_value=httpx.Response(status))
         with _client() as client, pytest.raises(ReportnetAPIError):
@@ -109,7 +111,7 @@ def test_other_statuses_are_never_retried(sleeps, status: int) -> None:
     assert sleeps == []
 
 
-def test_status_retry_is_get_only(sleeps) -> None:
+def test_status_retry_is_get_only(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.post("/x").mock(return_value=httpx.Response(503))
         with _client() as client, pytest.raises(ServerError):
@@ -117,7 +119,7 @@ def test_status_retry_is_get_only(sleeps) -> None:
     assert route.call_count == 1
 
 
-def test_connect_error_is_retried_for_any_method(sleeps) -> None:
+def test_connect_error_is_retried_for_any_method(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.post("/x").mock(side_effect=[httpx.ConnectError("down"), httpx.Response(200)])
         with _client() as client:
@@ -125,7 +127,7 @@ def test_connect_error_is_retried_for_any_method(sleeps) -> None:
     assert route.call_count == 2
 
 
-def test_read_timeout_is_retried_for_get_but_not_post(sleeps) -> None:
+def test_read_timeout_is_retried_for_get_but_not_post(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         get = mock.get("/x").mock(side_effect=[httpx.ReadTimeout("slow"), httpx.Response(200)])
         post = mock.post("/x").mock(side_effect=httpx.ReadTimeout("slow"))
@@ -137,7 +139,7 @@ def test_read_timeout_is_retried_for_get_but_not_post(sleeps) -> None:
     assert post.call_count == 1
 
 
-def test_file_uploads_are_not_retried(sleeps, tmp_path) -> None:
+def test_file_uploads_are_not_retried(sleeps: list[float], tmp_path: Path) -> None:
     f = tmp_path / "a.csv"
     f.write_text("x\n1\n")
     with respx.mock(base_url=BASE_URL) as mock:
@@ -147,7 +149,7 @@ def test_file_uploads_are_not_retried(sleeps, tmp_path) -> None:
     assert route.call_count == 1
 
 
-def test_lock_423_is_not_retried(sleeps) -> None:
+def test_lock_423_is_not_retried(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/x").mock(return_value=httpx.Response(423))
         with _client() as client, pytest.raises(LockedError):
@@ -155,7 +157,7 @@ def test_lock_423_is_not_retried(sleeps) -> None:
     assert route.call_count == 1
 
 
-def test_async_retry_and_no_retry_for_post(sleeps) -> None:
+def test_async_retry_and_no_retry_for_post(sleeps: list[float]) -> None:
     async def run() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
             get = mock.get("/x").mock(side_effect=[httpx.Response(504), httpx.Response(200)])
@@ -171,7 +173,7 @@ def test_async_retry_and_no_retry_for_post(sleeps) -> None:
     assert sleeps == [0.5]
 
 
-def test_retry_after_nan_and_garbage_fall_back_to_backoff(sleeps) -> None:
+def test_retry_after_nan_and_garbage_fall_back_to_backoff(sleeps: list[float]) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.get("/x").mock(
             side_effect=[
@@ -185,7 +187,7 @@ def test_retry_after_nan_and_garbage_fall_back_to_backoff(sleeps) -> None:
     assert sleeps == [0.5, 1.0]
 
 
-def test_retry_after_http_date_is_honoured_and_capped(sleeps) -> None:
+def test_retry_after_http_date_is_honoured_and_capped(sleeps: list[float]) -> None:
     from datetime import datetime, timedelta
     from email.utils import format_datetime
 
@@ -231,8 +233,8 @@ def test_pool_timeout_is_retried_for_any_method() -> None:
     assert POLICY.delay(0, "POST", error=httpx.PoolTimeout("busy")) == 0.5
 
 
-def test_streamed_bodies_are_not_retried(sleeps) -> None:
-    def chunks():
+def test_streamed_bodies_are_not_retried(sleeps: list[float]) -> None:
+    def chunks() -> Iterator[bytes]:
         yield b"abc"
 
     with respx.mock(base_url=BASE_URL) as mock:

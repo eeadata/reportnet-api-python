@@ -8,6 +8,7 @@ import csv
 import io
 import json
 import zipfile
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -101,7 +102,7 @@ def test_job_error_carries_status_and_info() -> None:
     assert JobError("plain").status is None
 
 
-def test_non_lake_csv_export_falls_back_to_v3(tmp_path) -> None:
+def test_non_lake_csv_export_falls_back_to_v3(tmp_path: Path) -> None:
     dest = tmp_path / "out.zip"
     with respx.mock(base_url=BASE_URL) as mock:
         _mock_refused_v4(mock, "/dataset/v4/etlExport/1", big_data=False)
@@ -131,7 +132,7 @@ def test_non_lake_csv_export_falls_back_to_v3(tmp_path) -> None:
     assert not list(tmp_path.glob("*.part"))
 
 
-def test_lake_dataflow_failure_is_not_retried_with_v3(tmp_path) -> None:
+def test_lake_dataflow_failure_is_not_retried_with_v3(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _mock_refused_v4(mock, "/dataset/v4/etlExport/1", big_data=True)
         with (
@@ -142,7 +143,7 @@ def test_lake_dataflow_failure_is_not_retried_with_v3(tmp_path) -> None:
     assert not (tmp_path / "out.zip").exists()
 
 
-def test_non_lake_parquet_export_explains(tmp_path) -> None:
+def test_non_lake_parquet_export_explains(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         _mock_refused_v4(mock, "/dataset/v5/etlExport/1", big_data=False)
         with (
@@ -152,7 +153,7 @@ def test_non_lake_parquet_export_explains(tmp_path) -> None:
             easy.export_to_file(client, 1, 2, tmp_path / "out.zip", file_format="parquet")
 
 
-def test_timeout_is_not_retried_with_v3(tmp_path) -> None:
+def test_timeout_is_not_retried_with_v3(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL, assert_all_called=False) as mock:
         mock.get("/dataset/v4/etlExport/1").mock(
             return_value=httpx.Response(200, json={"pollingUrl": V4_POLL + "?datasetId=1"})

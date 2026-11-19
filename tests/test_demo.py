@@ -1,14 +1,16 @@
+import pytest
+
 import reportnet_api
 from reportnet_api import easy
 from reportnet_api.demo import DEMO_DATAFLOW_ID, demo_client
 
 
-def test_version_is_a_string():
+def test_version_is_a_string() -> None:
     assert isinstance(reportnet_api.__version__, str)
     assert reportnet_api.__version__
 
 
-def test_demo_runs_the_notebook_helpers_without_network(capsys):
+def test_demo_runs_the_notebook_helpers_without_network(capsys: pytest.CaptureFixture[str]) -> None:
     c = demo_client()
     assert "DEMO MODE" in capsys.readouterr().out
     flows = easy.list_dataflows(c)
@@ -26,13 +28,13 @@ def test_demo_runs_the_notebook_helpers_without_network(capsys):
     assert easy.is_data_lake(c, DEMO_DATAFLOW_ID) is False
 
 
-def test_demo_pages_and_pandas_free_read():
+def test_demo_pages_and_pandas_free_read() -> None:
     c = demo_client(quiet=True)
     rows = easy.read_records(c, 102, DEMO_DATAFLOW_ID, page_size=2)
     assert [r["Station"] for r in rows] == ["Vienna Centre", "Graz South", "Linz Harbour"]
 
 
-def test_demo_refuses_anything_it_does_not_fake():
+def test_demo_refuses_anything_it_does_not_fake() -> None:
     import pytest
 
     from reportnet_api import NotFoundError, ReportnetAPIError

@@ -1,6 +1,7 @@
 """Tests for the Validation resource (sync + async), mocked."""
 
 import asyncio
+from pathlib import Path
 
 import httpx
 import pytest
@@ -75,7 +76,7 @@ def test_list_validations_empty_body_is_none() -> None:
             assert c.validation.list_validations(7) is None
 
 
-def test_export_waits_for_file(tmp_path) -> None:
+def test_export_waits_for_file(tmp_path: Path) -> None:
     dest = tmp_path / "v.csv"
     with respx.mock(base_url=BASE_URL) as mock:
         post = mock.post("/validation/export/7").mock(return_value=httpx.Response(200))
@@ -90,7 +91,7 @@ def test_export_waits_for_file(tmp_path) -> None:
     assert list(tmp_path.iterdir()) == [dest]  # no .part left behind
 
 
-def test_export_times_out(tmp_path) -> None:
+def test_export_times_out(tmp_path: Path) -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         mock.post("/validation/export/7").mock(return_value=httpx.Response(200))
         mock.get("/validation/downloadFile/7").mock(return_value=httpx.Response(404))
@@ -101,7 +102,7 @@ def test_export_times_out(tmp_path) -> None:
                 )
 
 
-def test_async_routes(tmp_path) -> None:
+def test_async_routes(tmp_path: Path) -> None:
     async def run() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.put("/orchestrator/jobs/addValidationJob/7").mock(return_value=httpx.Response(200))
@@ -123,7 +124,7 @@ def test_async_routes(tmp_path) -> None:
     asyncio.run(run())
 
 
-def test_download_false_on_404_and_empty_body_and_errors_propagate(tmp_path) -> None:
+def test_download_false_on_404_and_empty_body_and_errors_propagate(tmp_path: Path) -> None:
     from reportnet_api import ForbiddenError
 
     dest = tmp_path / "v.csv"
@@ -157,7 +158,7 @@ def test_list_validations_query_and_paging_checks() -> None:
                 c.validation.list_validations(7, page_size=0)
 
 
-def test_async_timeout_and_empty_body(tmp_path) -> None:
+def test_async_timeout_and_empty_body(tmp_path: Path) -> None:
     async def run() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
             mock.post("/validation/export/7").mock(return_value=httpx.Response(200))
