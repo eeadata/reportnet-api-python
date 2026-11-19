@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from http import HTTPStatus
 
@@ -60,11 +61,12 @@ class TooManyRequestsError(ReportnetAPIError):
 
     @property
     def retry_after(self) -> float | None:
-        """Seconds from a numeric `Retry-After` header, or None if absent or not a number."""
+        """Seconds from a numeric `Retry-After` header, or None if absent or not a finite number."""
         try:
-            return float(self.response.headers["Retry-After"])
+            seconds = float(self.response.headers["Retry-After"])
         except (KeyError, ValueError):
             return None
+        return seconds if math.isfinite(seconds) else None
 
 
 class ServerError(ReportnetAPIError):

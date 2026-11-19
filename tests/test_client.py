@@ -139,6 +139,8 @@ def test_locked_and_rate_limited_get_hints(status_code: int, fragment: str) -> N
     [
         ({"Retry-After": "7"}, 7.0),
         ({"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}, None),
+        ({"Retry-After": "inf"}, None),
+        ({"Retry-After": "nan"}, None),
         ({}, None),
     ],
 )
