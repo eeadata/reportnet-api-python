@@ -229,3 +229,6 @@ __marimo__/
 Thumbs.db
 .idea/
 .vscode/
+
+# Personal Claude Code instructions (private; never committed)
+CLAUDE.local.md
