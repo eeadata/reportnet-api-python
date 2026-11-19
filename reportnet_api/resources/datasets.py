@@ -211,7 +211,6 @@ class DatasetsResource:
     ) -> None:
         """Downloads a specific imported file for a given dataset and a given filename"""
         params = {"dataflowId": dataflow_id, "datasetId": dataset_id, "fileName": file_name}
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/download-imported-file"
         self._client.download("GET", url, params=params, dest=dest)
 
@@ -223,7 +222,6 @@ class DatasetsResource:
     ) -> bool:
         """duplicateFieldValueExists"""
         params = {"tableSchemaId": table_schema_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/duplicateFieldValueExists/{dataset_id}"
         response = self._client.request(
             "POST", url, params=params, json=field_vo.model_dump(mode="json", exclude_none=True)
@@ -703,7 +701,6 @@ class DatasetsResource:
             "providerCode": provider_code,
             "tableSchemaId": table_schema_id,
         }
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/getReleasedDatasetDataInfo"
         response = self._client.request("GET", url, params=params)
         return generated.ReleasedDatasetDataInfoVO.model_validate(response.json())
@@ -823,7 +820,6 @@ class DatasetsResource:
     ) -> list[generated.ImportedFilesDirectoriesVO]:
         """Returns all imported files for a given dataset"""
         params = {"datasetId": dataset_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/list-imported-files"
         response = self._client.request("GET", url, params=params)
         return [
@@ -1095,7 +1091,6 @@ class AsyncDatasetsResource:
     ) -> None:
         """Downloads a specific imported file for a given dataset and a given filename"""
         params = {"dataflowId": dataflow_id, "datasetId": dataset_id, "fileName": file_name}
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/download-imported-file"
         await self._client.download("GET", url, params=params, dest=dest)
 
@@ -1107,7 +1102,6 @@ class AsyncDatasetsResource:
     ) -> bool:
         """duplicateFieldValueExists"""
         params = {"tableSchemaId": table_schema_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataset/duplicateFieldValueExists/{dataset_id}"
         response = await self._client.request(
             "POST", url, params=params, json=field_vo.model_dump(mode="json", exclude_none=True)
@@ -1587,7 +1581,6 @@ class AsyncDatasetsResource:
             "providerCode": provider_code,
             "tableSchemaId": table_schema_id,
         }
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/getReleasedDatasetDataInfo"
         response = await self._client.request("GET", url, params=params)
         return generated.ReleasedDatasetDataInfoVO.model_validate(response.json())
@@ -1707,7 +1700,6 @@ class AsyncDatasetsResource:
     ) -> list[generated.ImportedFilesDirectoriesVO]:
         """Returns all imported files for a given dataset"""
         params = {"datasetId": dataset_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = "/dataset/list-imported-files"
         response = await self._client.request("GET", url, params=params)
         return [

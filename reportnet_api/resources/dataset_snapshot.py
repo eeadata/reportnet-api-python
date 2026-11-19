@@ -66,7 +66,6 @@ class DatasetSnapshotResource:
         `/snapshot/downloadHistoricReleases/{id}?dataflowId=..&fileName=..&processId=..`.
         Pass its `fileName`/`processId` to `download_historic_releases_csv`."""
         params = {"dataflowId": dataflow_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/snapshot/exportHistoricReleases/{dataset_id}"
         response = self._client.request("POST", url, params=params)
         return response.text
@@ -144,7 +143,6 @@ class AsyncDatasetSnapshotResource:
         `/snapshot/downloadHistoricReleases/{id}?dataflowId=..&fileName=..&processId=..`.
         Pass its `fileName`/`processId` to `download_historic_releases_csv`."""
         params = {"dataflowId": dataflow_id}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/snapshot/exportHistoricReleases/{dataset_id}"
         response = await self._client.request("POST", url, params=params)
         return response.text

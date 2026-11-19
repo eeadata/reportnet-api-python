@@ -137,7 +137,6 @@ class DatasetSchemaResource:
     ) -> None:
         """updateManuallyEditableByDatasetId"""
         params = {"manuallyEditable": manually_editable}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataschema/updateManuallyEditable/{dataset_id}"
         self._client.request("PUT", url, params=params)
 
@@ -265,6 +264,5 @@ class AsyncDatasetSchemaResource:
     ) -> None:
         """updateManuallyEditableByDatasetId"""
         params = {"manuallyEditable": manually_editable}
-        params = {k: v for k, v in params.items() if v is not None}
         url = f"/dataschema/updateManuallyEditable/{dataset_id}"
         await self._client.request("PUT", url, params=params)
