@@ -17,6 +17,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SPEC_PATH = REPO_ROOT / "spec" / "api-docs.json"
@@ -224,14 +225,17 @@ class Operation:
     # neither JSON nor `*/*` (Spring 406s the client's JSON default otherwise).
     accept: str | None = None
 
+    def path_fstring(self) -> str:
+        return _path_fstring(self)
 
-def swagger_param_type(p: dict) -> str:
+
+def swagger_param_type(p: dict[str, Any]) -> str:
     if p.get("type") == "array":
         item_type = SWAGGER_TO_PY.get(p.get("items", {}).get("type"), "str")
         return f"list[{item_type}]"
     if p.get("type") == "file":
         return "str"
-    return SWAGGER_TO_PY.get(p.get("type"), "str")
+    return SWAGGER_TO_PY.get(p.get("type", ""), "str")
 
 
 def accept_for(produces: list[str]) -> str | None:
@@ -250,7 +254,7 @@ def accept_for(produces: list[str]) -> str | None:
     return ", ".join([*produces, "*/*;q=0.1"])
 
 
-def parse_operation(method: str, path: str, op: dict) -> Operation:
+def parse_operation(method: str, path: str, op: dict[str, Any]) -> Operation:
     method_name = method_name_for(op["operationId"])
     operation = Operation(
         method=method.upper(),
@@ -511,9 +515,6 @@ def _path_fstring(self: Operation) -> str:
     for p in path_items:
         result = result.replace("{" + p.wire_name + "}", "{" + p.py_name + "}")
     return f'f"{result}"'
-
-
-Operation.path_fstring = _path_fstring  # type: ignore[attr-defined]
 
 
 def render_method(op: Operation, *, is_async: bool) -> str:

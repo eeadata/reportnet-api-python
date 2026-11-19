@@ -25,6 +25,7 @@ from pathlib import Path
 
 import streamlit as st
 from pydantic import BaseModel
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 from reportnet_api import ReportnetAPIError, ReportnetClient
 
@@ -98,15 +99,17 @@ def convert_param(name: str, raw: object, inner: object, required: bool) -> tupl
             if required:
                 raise ValueError("file is required")
             return False, None
+        if not isinstance(raw, UploadedFile):
+            raise TypeError(f"file: expected an uploaded file, got {type(raw).__name__}")
         tmp_path = Path(tempfile.gettempdir()) / raw.name
         tmp_path.write_bytes(raw.getvalue())
         return True, tmp_path
 
     if name == "dest":
-        Path(raw).parent.mkdir(parents=True, exist_ok=True)
+        Path(str(raw)).parent.mkdir(parents=True, exist_ok=True)
         return True, raw
 
-    text = (raw or "").strip()
+    text = str(raw or "").strip()
     if not text:
         if required:
             raise ValueError(f"{name} is required")

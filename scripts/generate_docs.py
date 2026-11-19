@@ -367,7 +367,7 @@ def build_pages() -> tuple[dict[str, str], dict[str, list[MethodDoc]]]:
             ):
                 continue
             prop = isinstance(member, property)
-            func = member.fget if prop else member
+            func = member.fget if isinstance(member, property) else member
             d = build_method_doc(
                 f"{cls.__name__}.{n}",
                 func,

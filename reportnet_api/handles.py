@@ -38,7 +38,8 @@ def _int_or_none(value: Any) -> int | None:
 
 def _as_id(key: object) -> int | None:
     """An integer key (numpy integers included; bool is not an id), else None."""
-    if isinstance(key, numbers.Integral) and not isinstance(key, bool):
+    # mypy thinks no bool is Integral; at runtime isinstance(True, numbers.Integral) is True.
+    if isinstance(key, numbers.Integral) and not isinstance(key, bool):  # type: ignore[unreachable]
         return int(key)
     return None
 

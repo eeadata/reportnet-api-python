@@ -91,7 +91,9 @@ ignore = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-warn_unused_ignores = true
+files = ["reportnet_api", "tests", "scripts", "tools"]
+warn_unreachable = true
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool", "possibly-undefined"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -102,3 +104,21 @@ xfail_strict = true
 [[tool.mypy.overrides]]
 module = ["pandas", "pandas.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# numpy's stubs use Python 3.12 syntax, which python_version 3.11 cannot parse.
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+follow_imports_for_stubs = true
+
+[[tool.mypy.overrides]]
+# Only scripts/make_logo.py uses these, installed ad hoc with `uv run --with`.
+module = ["cairosvg", "fontTools.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# TEMPORARY: tests are being annotated file by file; remove this block when done.
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_incomplete_defs = false

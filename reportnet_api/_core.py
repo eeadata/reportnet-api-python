@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
-from types import MappingProxyType
+from types import FrameType, MappingProxyType
 from typing import Any, BinaryIO
 
 import httpx
@@ -42,12 +42,13 @@ def caller_stacklevel() -> int:
     """The `stacklevel` that points a warning at the first frame outside this package."""
     # os.path on purpose: Path.resolve() follows symlinks, co_filename does not.
     package_dir = os.path.dirname(os.path.abspath(__file__)) + os.sep  # noqa: PTH100, PTH120
-    level, frame = 1, sys._getframe(1)
+    level = 1
+    frame: FrameType | None = sys._getframe(1)
     while frame is not None and os.path.abspath(  # noqa: PTH100 - same reason
         frame.f_code.co_filename
     ).startswith(package_dir):
         level += 1
-        frame = frame.f_back  # type: ignore[assignment]
+        frame = frame.f_back
     return level
 
 
