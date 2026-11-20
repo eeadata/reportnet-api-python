@@ -368,7 +368,8 @@ CAVEATS: dict[str, list[Caveat]] = {
         ),
         (
             "On a data-lake dataflow (`bigData: true`) the export answers 200 with 0 rows "
-            "although rows exist, so an all-empty result warns; use `export_to_file()`.",
+            "although rows exist; an all-empty result looks up `bigData` and warns only "
+            "for a lake (or when the lookup fails); use `export_to_file()` there.",
             "",
         ),
     ],

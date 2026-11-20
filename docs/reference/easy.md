@@ -573,9 +573,11 @@ row count that differs from `totalRecords`, or tables of the schema missing
 from the answer.
 
 Data-lake caveat: for a dataflow with `bigData: true` this route answers `200`
-with 0 rows even when data exists (live-tested), so a result
-with no rows at all raises a `RuntimeWarning`; use `export_to_file()` (job export)
-for such a dataset.
+with 0 rows even when data exists (live-tested). When a result has no rows at
+all, the dataflow's `bigData` flag is looked up (one extra call): a lake gets a
+`RuntimeWarning` pointing to `export_to_file()` (job export), a non-lake dataflow
+gets none (the tables are empty), and if the lookup fails the warning says the
+dataset may be in a lake.
 
 Values arrive from the backend as text, empty cells as `''`. With
 `dtypes="schema"` columns are converted using the field types in the dataset
@@ -590,7 +592,7 @@ a callable receives an event dict per page (`reportnet_api.jobs.progress_event`)
 **Live-tested notes:**
 
 - Uses the synchronous ETL export, whose access is credential-dependent.
-- On a data-lake dataflow (`bigData: true`) the export answers 200 with 0 rows although rows exist, so an all-empty result warns; use `export_to_file()`.
+- On a data-lake dataflow (`bigData: true`) the export answers 200 with 0 rows although rows exist; an all-empty result looks up `bigData` and warns only for a lake (or when the lookup fails); use `export_to_file()` there.
 
 ### validate_and_wait
 

@@ -169,14 +169,50 @@ def test_read_tables_warns_on_table_missing_from_export(monkeypatch: pytest.Monk
 
 
 @respx.mock
-def test_read_tables_warns_when_export_has_no_rows(no_schema_check: None) -> None:
+def test_read_tables_warns_when_lake_export_has_no_rows(no_schema_check: None) -> None:
     # Live (sandbox, 2026-11-06): a data-lake dataset answers 200 with empty tables.
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
         json={"tables": [{"tableName": "T", "records": []}]}
     )
-    with pytest.warns(RuntimeWarning, match="data-lake"):
+    flow = respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": True})
+    with pytest.warns(RuntimeWarning, match=r"is a data-lake dataflow.*export_to_file"):
         out = easy.read_tables(easy.connect("k"), 7, 1)
     assert out["T"].empty
+    assert flow.call_count == 1
+
+
+@respx.mock
+def test_read_tables_no_warning_when_relational_export_is_empty(
+    no_schema_check: None, recwarn: pytest.WarningsRecorder
+) -> None:
+    # Not a lake: zero rows means the tables really are empty.
+    respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
+        json={"tables": [{"tableName": "T", "records": []}]}
+    )
+    respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": False})
+    out = easy.read_tables(easy.connect("k"), 7, 1)
+    assert out["T"].empty
+    assert not [w for w in recwarn if issubclass(w.category, RuntimeWarning)]
+
+
+@respx.mock
+def test_read_tables_vague_warning_when_lake_lookup_fails(no_schema_check: None) -> None:
+    respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
+        json={"tables": [{"tableName": "T", "records": []}]}
+    )
+    respx.get(f"{BASE}/dataflow/v1/1").respond(403)
+    with pytest.warns(RuntimeWarning, match=r"may be\s+in a data-lake dataflow"):
+        easy.read_tables(easy.connect("k"), 7, 1)
+
+
+@respx.mock
+def test_read_tables_skips_lake_lookup_when_rows_arrive(no_schema_check: None) -> None:
+    respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
+        json={"tables": [{"tableName": "T", "records": [_rec("r1", "x")]}]}
+    )
+    flow = respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": True})
+    easy.read_tables(easy.connect("k"), 7, 1)
+    assert flow.call_count == 0
 
 
 def _vrow(code: str, rule: str) -> dict[str, Any]:
@@ -464,6 +500,7 @@ def test_warnings_point_at_the_callers_line(no_schema_check: None) -> None:
     import warnings
 
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(json={"tables": []})
+    respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": True})
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         easy.read_all_records(easy.connect("k"), 7, 1)
@@ -489,6 +526,7 @@ def test_page_size_accepts_numpy_ints_and_rejects_bools(no_schema_check: None) -
             easy.read_records(client, 7, 1, page_size=bad)
     with respx.mock:
         respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(json={"tables": []})
+        respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": True})
         with pytest.warns(RuntimeWarning):
             easy.read_all_records(client, 7, 1, page_size=np.int64(500))
 
