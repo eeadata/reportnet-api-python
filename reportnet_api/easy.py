@@ -273,6 +273,23 @@ def is_data_lake(client: ReportnetClient, dataflow_id: int) -> bool:
     return bool((flow or {}).get("bigData"))
 
 
+def _big_data_flag(
+    client: ReportnetClient, dataflow_id: int, provider_id: int | None
+) -> bool | None:
+    """The dataflow's `bigData` flag, or None when the answer does not say.
+
+    Advisory only (it picks a warning), so it never raises: a refused or failed
+    call, an empty 200 (the route swallows its own errors) or a body without a
+    boolean `bigData` all give None.
+    """
+    try:
+        flow = client.dataflow.dataflow_datasets(dataflow_id, provider_id=provider_id)
+    except (ReportnetAPIError, httpx.HTTPError, ValueError):
+        return None
+    flag = flow.get("bigData") if isinstance(flow, dict) else None
+    return flag if isinstance(flag, bool) else None
+
+
 _ERROR_COLUMNS = [
     "short_code",
     "level",
@@ -707,13 +724,25 @@ def _collect_tables(
                 stacklevel=caller_stacklevel(),
             )
     if not any(collected.values()):
-        warnings.warn(
-            "The ETL export answered with no rows. If the dataset is not empty, it may be "
-            "in a data-lake dataflow (`bigData: true`), where this route answers 200 with "
-            "0 rows (live-tested); read it with `easy.export_to_file()` instead",
-            RuntimeWarning,
-            stacklevel=caller_stacklevel(),
-        )
+        # Only looked up here: a lake answers 200 with 0 rows (live-tested), so an
+        # empty result is the one case where `bigData` changes what it means.
+        lake = _big_data_flag(client, dataflow_id, provider_id)
+        if lake:
+            warnings.warn(
+                f"The ETL export answered with no rows: dataflow {dataflow_id} is a "
+                "data-lake dataflow (`bigData: true`), where this route never returns "
+                "rows (live-tested); read it with `easy.export_to_file()` instead",
+                RuntimeWarning,
+                stacklevel=caller_stacklevel(),
+            )
+        elif lake is None:
+            warnings.warn(
+                "The ETL export answered with no rows. If the dataset is not empty, it may be "
+                "in a data-lake dataflow (`bigData: true`), where this route answers 200 with "
+                "0 rows (live-tested); read it with `easy.export_to_file()` instead",
+                RuntimeWarning,
+                stacklevel=caller_stacklevel(),
+            )
     if table_schema_id is None:
         expected = _schema_table_names(client, dataset_id)
         missing = sorted(expected - collected.keys()) if expected else []
@@ -752,9 +781,11 @@ def read_tables(
     from the answer.
 
     Data-lake caveat: for a dataflow with `bigData: true` this route answers `200`
-    with 0 rows even when data exists (live-tested), so a result
-    with no rows at all raises a `RuntimeWarning`; use `export_to_file()` (job export)
-    for such a dataset.
+    with 0 rows even when data exists (live-tested). When a result has no rows at
+    all, the dataflow's `bigData` flag is looked up (one extra call): a lake gets a
+    `RuntimeWarning` pointing to `export_to_file()` (job export), a dataflow that
+    answers `bigData: false` gets none (the tables are empty), and if the lookup
+    fails or does not say, the warning says the dataset may be in a lake.
 
     Values arrive from the backend as text, empty cells as `''`. With
     `dtypes="schema"` columns are converted using the field types in the dataset

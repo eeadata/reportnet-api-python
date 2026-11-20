@@ -4,6 +4,14 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## Unreleased
+
+- `read_tables` (and `read_table`, `read_records`, `read_all_records`): when the export
+  has no rows at all, the dataflow's `bigData` flag is looked up. A data-lake dataflow
+  gets a definite warning pointing to `export_to_file()`; a dataflow that answers
+  `bigData: false` gets no warning, since its tables really are empty. If the lookup
+  fails or its answer does not say, the old "may be a data lake" warning stays.
+
 ## 0.1.3 (2026-11-19)
 
 - Downloads (`client.download()` and everything built on it, such as `export_to_file`)
