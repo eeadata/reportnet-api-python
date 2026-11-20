@@ -328,6 +328,36 @@ def test_validate_and_wait_warns_on_finished_with_info(monkeypatch: pytest.Monke
     with pytest.warns(RuntimeWarning, match="canceled validation tasks"):
         df = easy.validate_and_wait(easy.connect("k"), 9, 5)
     assert df["short_code"].tolist() == ["A"]
+    assert df.attrs["validation_note"] == note
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        httpx.Response(401),
+        httpx.Response(500, json={"message": "401 UNAUTHORIZED"}),
+    ],
+)
+@respx.mock
+def test_validate_and_wait_falls_back_on_refused_credential(
+    monkeypatch: pytest.MonkeyPatch, refusal: httpx.Response
+) -> None:
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
+    routes = _job_backend([refusal])
+    new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}
+    answers = iter([[], [new]])
+    routes["notes"].mock(
+        side_effect=lambda r: httpx.Response(200, json={"userNotifications": next(answers)})
+    )
+    df = easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert df["short_code"].tolist() == ["A"]
+
+
+@respx.mock
+def test_validate_and_wait_job_timeout_names_dataset_and_timeout() -> None:
+    _job_backend([httpx.Response(200, json={"status": "IN_PROGRESS"})])
+    with pytest.raises(JobError, match=r"job 44570 for dataset 9 .* within 0 seconds"):
+        easy.validate_and_wait(easy.connect("k"), 9, 5, timeout=0)
 
 
 @respx.mock

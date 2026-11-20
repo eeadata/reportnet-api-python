@@ -32,9 +32,11 @@ import httpx
 
 from ._core import RetryPolicy, atomic_destination, caller_stacklevel
 from ._exceptions import (
+    AuthenticationError,
     ForbiddenError,
     NotFoundError,
     ReportnetAPIError,
+    ServerError,
     _is_rejected_credential_500,
 )
 from .client import ReportnetClient
@@ -431,6 +433,7 @@ def _wait_validation_job(
     provider_id: int | None,
     *,
     deadline: float,
+    timeout: float,
     poll_interval: float,
 ) -> dict[str, Any] | None:
     """Poll the validation job until it ends; None when the poll route is refused."""
@@ -445,9 +448,20 @@ def _wait_validation_job(
             poll_interval=poll_interval,
             timeout=max(0.0, deadline - time.monotonic()),
         )
-    except (ForbiddenError, NotFoundError):
+    except (AuthenticationError, ForbiddenError, NotFoundError):
         # `MasterDataLakes` guards this route with an ApiKey check only.
         return None
+    except ServerError as err:
+        if _is_rejected_credential_500(err.response_body):
+            return None  # a refused credential, answered as 500 (see `explain`)
+        raise
+    except JobError as err:
+        if err.status is None and "did not finish" in str(err):
+            raise JobError(
+                f"Validation job {job_id} for dataset {dataset_id} did not finish within "
+                f"{timeout:g} seconds (it may still be running on the server)"
+            ) from err
+        raise
 
 
 def validate_and_wait(
@@ -475,7 +489,8 @@ def validate_and_wait(
     validation job's id, so the job is polled (`pollForJobStatus`, as for imports
     and exports). A job that ends FAILED, REFUSED or CANCELED raises `JobError`
     with the job's `status` and `info`; a FINISHED job with an `info` text (for
-    example "There are canceled validation tasks") warns with it. Read from the
+    example "There are canceled validation tasks", so the results may be partial)
+    warns with it and puts it in the result's `attrs["validation_note"]`. Read from the
     backend source (`MasterOneVersion` branch); the job polling is not yet tested
     live for validations.
 
@@ -510,16 +525,19 @@ def validate_and_wait(
             dataflow_id,
             provider_id,
             deadline=deadline,
+            timeout=timeout,
             poll_interval=poll_interval,
         )
         if answer is not None:
+            errors = validation_errors(client, dataset_id, dataflow_id, data_lake=data_lake)
             if answer.get("info"):
+                errors.attrs["validation_note"] = str(answer["info"])
                 warnings.warn(
                     f"Validation job {job_id} finished with a note: {answer['info']}",
                     RuntimeWarning,
                     stacklevel=caller_stacklevel(),
                 )
-            return validation_errors(client, dataset_id, dataflow_id, data_lake=data_lake)
+            return errors
     while True:
         ms, kind, content = _newest_validation_event(client, dataset_id, event)
         if ms > baseline:

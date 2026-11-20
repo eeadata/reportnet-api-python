@@ -31,7 +31,12 @@ def test_start_validation_returns_job_id_and_sends_ids() -> None:
     # older branches answer an empty body.
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.put("/orchestrator/jobs/addValidationJob/7").mock(
-            side_effect=[httpx.Response(200, text="44570"), httpx.Response(200)]
+            side_effect=[
+                httpx.Response(200, text="44570"),
+                httpx.Response(200),
+                httpx.Response(200, text='"17"'),
+                httpx.Response(200, text="\u00b2"),
+            ]
         )
         with ReportnetClient(BASE_URL, "t") as c:
             assert c.validation.start_validation(7, dataflow_id=5, provider_id=11) == 44570
@@ -39,6 +44,8 @@ def test_start_validation_returns_job_id_and_sends_ids() -> None:
             assert (params["dataflowId"], params["providerId"]) == ("5", "11")
             assert c.validation.start_validation(7) is None
             assert "dataflowId" not in route.calls[-1].request.url.params
+            assert c.validation.start_validation(7) == 17  # JSON-quoted
+            assert c.validation.start_validation(7) is None  # not an ASCII number
 
 
 def test_list_group_validations_params_and_validation() -> None:

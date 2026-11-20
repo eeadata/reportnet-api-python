@@ -11,7 +11,7 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
   that method now returns (`None` on backends that answer an empty body). A job that
   ends FAILED, REFUSED or CANCELED raises `JobError` with the job's status and
   `info` right away, instead of waiting for the timeout; a finished job with a note
-  warns with it. Without a job id, or when polling is refused, it waits for the
+  warns with it and stores it in the result's `attrs["validation_note"]`. Without a job id, or when polling is refused, it waits for the
   user notification as before, and now also stops on a refused, canceled or failed
   notification. New keyword `provider_id` (the handle passes its own);
   `start_validation` also takes `dataflow_id` and `provider_id`.

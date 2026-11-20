@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -62,8 +63,8 @@ def _start_params(
 def _job_id_of_body(text: str) -> int | None:
     # `MasterOneVersion`'s JobControllerImpl#addValidationJob returns `Long jobId`;
     # `develop` and `MasterDataLakes` return void (an empty body).
-    body = text.strip()
-    return int(body) if body.isdigit() else None
+    body = text.strip().strip('"')
+    return int(body) if re.fullmatch(r"[0-9]+", body) else None
 
 
 def _list_params(
