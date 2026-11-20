@@ -333,6 +333,127 @@ def test_validate_and_wait_times_out(monkeypatch: pytest.MonkeyPatch) -> None:
         easy.validate_and_wait(easy.connect("k"), 9, 5, timeout=0)
 
 
+def _job_backend(job_answers: list[httpx.Response]) -> dict[str, respx.Route]:
+    """Mocks for a backend whose addValidationJob answers a job id (`44570`)."""
+    return {
+        "notes": respx.get(f"{BASE}/notification/findUserNotifications").respond(
+            json={"userNotifications": []}
+        ),
+        "start": respx.put(f"{BASE}/orchestrator/jobs/addValidationJob/9").respond(
+            200, text="44570"
+        ),
+        "poll": respx.get(f"{BASE}/orchestrator/jobs/pollForJobStatus/44570").mock(
+            side_effect=job_answers
+        ),
+        "flow": respx.get(f"{BASE}/dataflow/v1/5").respond(json={"bigData": False}),
+        "errors": respx.get(url__regex=rf"{BASE}/validation/listGroupValidations/.*").respond(
+            json={"errors": [_vrow("A", "r1")], "totalRecords": 1}
+        ),
+    }
+
+
+@respx.mock
+def test_validate_and_wait_polls_the_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("reportnet_api.jobs.time.sleep", lambda s: None)
+    routes = _job_backend(
+        [
+            httpx.Response(200, json={"status": "IN_PROGRESS"}),
+            httpx.Response(200, json={"status": "FINISHED"}),
+        ]
+    )
+    df = easy.validate_and_wait(easy.connect("k"), 9, 5, provider_id=11)
+    assert df["short_code"].tolist() == ["A"]
+    assert routes["poll"].call_count == 2
+    poll = routes["poll"].calls[-1].request.url.params
+    assert (poll["datasetId"], poll["dataflowId"], poll["providerId"]) == ("9", "5", "11")
+    start = routes["start"].calls[-1].request.url.params
+    assert (start["dataflowId"], start["providerId"]) == ("5", "11")
+    assert routes["notes"].call_count == 1  # baseline only: the job is the signal
+
+
+@respx.mock
+def test_validate_and_wait_raises_when_the_job_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("reportnet_api.jobs.time.sleep", lambda s: None)
+    info = "Validation failed due to system error. Please contact the Service Desk for support."
+    _job_backend([httpx.Response(200, json={"status": "FAILED", "info": info})])
+    with pytest.raises(JobError, match="system error") as caught:
+        easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert caught.value.status == "FAILED" and caught.value.info == info
+
+
+@respx.mock
+def test_validate_and_wait_warns_on_finished_with_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    note = "There are canceled validation tasks. Please review and address the issues."
+    _job_backend([httpx.Response(200, json={"status": "FINISHED", "info": note})])
+    with pytest.warns(RuntimeWarning, match="canceled validation tasks"):
+        df = easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert df["short_code"].tolist() == ["A"]
+    assert df.attrs["validation_note"] == note
+
+
+@pytest.mark.parametrize(
+    "refusal",
+    [
+        httpx.Response(401),
+        httpx.Response(500, json={"message": "401 UNAUTHORIZED"}),
+    ],
+)
+@respx.mock
+def test_validate_and_wait_falls_back_on_refused_credential(
+    monkeypatch: pytest.MonkeyPatch, refusal: httpx.Response
+) -> None:
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
+    routes = _job_backend([refusal])
+    new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}
+    answers = iter([[], [new]])
+    routes["notes"].mock(
+        side_effect=lambda r: httpx.Response(200, json={"userNotifications": next(answers)})
+    )
+    df = easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert df["short_code"].tolist() == ["A"]
+
+
+@respx.mock
+def test_validate_and_wait_job_timeout_names_dataset_and_timeout() -> None:
+    _job_backend([httpx.Response(200, json={"status": "IN_PROGRESS"})])
+    with pytest.raises(JobError, match=r"job 44570 for dataset 9 .* within 0 seconds"):
+        easy.validate_and_wait(easy.connect("k"), 9, 5, timeout=0)
+
+
+@respx.mock
+def test_validate_and_wait_falls_back_to_notifications_when_poll_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
+    routes = _job_backend([httpx.Response(403)])
+    new = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 200, "content": {"datasetId": 9}}
+    answers = iter([[], [new]])
+    routes["notes"].mock(
+        side_effect=lambda r: httpx.Response(200, json={"userNotifications": next(answers)})
+    )
+    df = easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert df["short_code"].tolist() == ["A"] and routes["poll"].call_count == 1
+
+
+@respx.mock
+def test_validate_and_wait_raises_on_failure_notification(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No job id (older backend): a failure event newer than the baseline ends the wait.
+    monkeypatch.setattr("reportnet_api.easy.time.sleep", lambda s: None)
+    old = {"eventType": "VALIDATION_FINISHED_EVENT", "insertDate": 100, "content": {"datasetId": 9}}
+    failed = {
+        "eventType": "VALIDATION_FAILED_SYSTEM_ERROR_EVENT",
+        "insertDate": 200,
+        "content": {"datasetId": 9, "error": "promotion failed"},
+    }
+    answers = iter([[old], [old], [failed, old]])
+    respx.get(f"{BASE}/notification/findUserNotifications").mock(
+        side_effect=lambda r: httpx.Response(200, json={"userNotifications": next(answers)})
+    )
+    respx.put(f"{BASE}/orchestrator/jobs/addValidationJob/9").respond(200)
+    with pytest.raises(JobError, match=r"VALIDATION_FAILED_SYSTEM_ERROR_EVENT.*promotion failed"):
+        easy.validate_and_wait(easy.connect("k"), 9, 5)
+
+
 JWT = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln-_x"
 
 

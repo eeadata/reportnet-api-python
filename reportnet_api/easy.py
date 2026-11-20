@@ -26,14 +26,22 @@ from decimal import Decimal
 from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+from urllib.parse import urlencode
 
 import httpx
 
 from ._core import RetryPolicy, atomic_destination, caller_stacklevel
-from ._exceptions import ForbiddenError, ReportnetAPIError, _is_rejected_credential_500
+from ._exceptions import (
+    AuthenticationError,
+    ForbiddenError,
+    NotFoundError,
+    ReportnetAPIError,
+    ServerError,
+    _is_rejected_credential_500,
+)
 from .client import ReportnetClient
 from .demo import demo_client as _demo_client
-from .jobs import JobError, Progress, progress_event, progress_scope
+from .jobs import JobError, Progress, progress_event, progress_scope, wait_for_job
 from .resources.dataflow_ext import DataflowKind
 
 if TYPE_CHECKING:
@@ -389,22 +397,88 @@ def validation_summary(client: ReportnetClient, dataset_id: int, dataflow_id: in
     return grouped[cols]
 
 
-def _latest_notification_ms(client: ReportnetClient, dataset_id: int, event_type: str) -> int:
-    """`insertDate` (ms) of the newest `event_type` user notification for the dataset, or 0.
+# Notification event types that end a validation run without results. The
+# backend's `MasterDataLakes` and `MasterOneVersion` branches persist these as user
+# notifications (`EventType`, `persist=true`); `develop` has none.
+_VALIDATION_FAILURE_EVENTS = {
+    "VALIDATION_REFUSED_EVENT": "REFUSED",
+    "VALIDATE_AS_PROVIDER_REFUSED_EVENT": "REFUSED",
+    "VALIDATION_CANCELED_EVENT": "CANCELED",
+}
+
+
+def _validation_failure_status(event_type: str) -> str | None:
+    """The job status a failure notification stands for, or None if it is not one."""
+    if event_type in _VALIDATION_FAILURE_EVENTS:
+        return _VALIDATION_FAILURE_EVENTS[event_type]
+    if event_type.startswith("VALIDATION_FAILED_") and event_type.endswith("_EVENT"):
+        return "FAILED"  # e.g. VALIDATION_FAILED_SYSTEM_ERROR_EVENT
+    return None
+
+
+def _newest_validation_event(
+    client: ReportnetClient, dataset_id: int, finished_event: str
+) -> tuple[int, str, dict[str, Any]]:
+    """Newest `finished_event` or failure notification for the dataset: (ms, type, content).
 
     Reads `GET /notification/findUserNotifications` (hidden route; the list the
-    Reportnet UI shows, newest first, for the calling user only).
+    Reportnet UI shows, newest first, for the calling user only). `(0, "", {})` when
+    there is none.
     """
     answer = client.request(
         "GET", "/notification/findUserNotifications", params={"pageNum": 0, "pageSize": 50}
     ).json()
-    times = [
-        int(n.get("insertDate") or 0)
-        for n in (answer or {}).get("userNotifications") or []
-        if n.get("eventType") == event_type
-        and (n.get("content") or {}).get("datasetId") == dataset_id
-    ]
-    return max(times, default=0)
+    newest: tuple[int, str, dict[str, Any]] = (0, "", {})
+    for note in (answer or {}).get("userNotifications") or []:
+        content = note.get("content") or {}
+        kind = str(note.get("eventType") or "")
+        if content.get("datasetId") != dataset_id:
+            continue
+        if kind != finished_event and _validation_failure_status(kind) is None:
+            continue
+        ms = int(note.get("insertDate") or 0)
+        if ms > newest[0]:
+            newest = (ms, kind, content)
+    return newest
+
+
+def _wait_validation_job(
+    client: ReportnetClient,
+    job_id: int,
+    dataset_id: int,
+    dataflow_id: int,
+    provider_id: int | None,
+    *,
+    deadline: float,
+    timeout: float,
+    poll_interval: float,
+) -> dict[str, Any] | None:
+    """Poll the validation job until it ends; None when the poll route is refused."""
+    params: dict[str, int] = {"datasetId": dataset_id, "dataflowId": dataflow_id}
+    if provider_id is not None:
+        params["providerId"] = provider_id
+    url = f"/orchestrator/jobs/pollForJobStatus/{job_id}?{urlencode(params)}"
+    try:
+        return wait_for_job(
+            client,
+            url,
+            poll_interval=poll_interval,
+            timeout=max(0.0, deadline - time.monotonic()),
+        )
+    except (AuthenticationError, ForbiddenError, NotFoundError):
+        # `MasterDataLakes` guards this route with an ApiKey check only.
+        return None
+    except ServerError as err:
+        if _is_rejected_credential_500(err.response_body):
+            return None  # a refused credential, answered as 500 (see `explain`)
+        raise
+    except JobError as err:
+        if err.status is None and "did not finish" in str(err):
+            raise JobError(
+                f"Validation job {job_id} for dataset {dataset_id} did not finish within "
+                f"{timeout:g} seconds (it may still be running on the server)"
+            ) from err
+        raise
 
 
 def validate_and_wait(
@@ -413,6 +487,7 @@ def validate_and_wait(
     dataflow_id: int,
     *,
     released: bool = False,
+    provider_id: int | None = None,
     timeout: float = 600.0,
     poll_interval: float = 3.0,
     data_lake: bool | None = None,
@@ -420,32 +495,84 @@ def validate_and_wait(
     """Start a validation, wait until it finishes, return `validation_errors()`.
 
     `data_lake` is passed to `validation_errors()` (None: detect from `bigData`).
+    `provider_id` goes to the start and the poll; a provider-scoped (reporter)
+    ApiKey needs it there.
 
-    WRITES: replaces the dataset's validation results and takes a dataset lock.
-    The completion signal is the user notification the backend creates when a run
-    ends (`VALIDATION_FINISHED_EVENT`, or `VALIDATION_RELEASE_FINISHED_EVENT` with
-    `released=True`), read from `/notification/findUserNotifications`: the dataset
-    has no status field to poll (live, the sandbox). A run took
-    about 35-55 s there. Only the calling user's notifications are visible, and a
-    failed run has no event of its own here, so it ends as a `JobError` timeout.
-    Notification times are server-side, so a newer one than any seen before the
-    start counts; a run started by someone else at the same moment could be
-    mistaken for this one. Raises `JobError` after `timeout` seconds.
+    WRITES: replaces the dataset's validation results and takes a dataset lock (a
+    second start while one runs gets `LockedError`, 423). Runs took about 35-100 s
+    on the sandbox.
+
+    How the end is detected: the current backend answers the start with the
+    validation job's id, so the job is polled (`pollForJobStatus`, as for imports
+    and exports). A job that ends FAILED, REFUSED or CANCELED raises `JobError`
+    with the job's `status` and `info`; a FINISHED job with an `info` text (for
+    example "There are canceled validation tasks", so the results may be partial)
+    warns with it and puts it in the result's `attrs["validation_note"]`. Read from the
+    backend source (`MasterOneVersion` branch); the job polling is not yet tested
+    live for validations.
+
+    Without a job id (older backends), or when the poll route is refused, the
+    signal is the user notification the backend creates when a run ends
+    (`VALIDATION_FINISHED_EVENT`, or `VALIDATION_RELEASE_FINISHED_EVENT` with
+    `released=True`), read from `/notification/findUserNotifications` (live, the
+    sandbox). A newer refused, canceled or `VALIDATION_FAILED_*` notification
+    raises `JobError` instead. Only the calling user's notifications are visible,
+    and their times are server-side, so a newer one than any seen before the start
+    counts; a run started by someone else at the same moment could be mistaken
+    for this one.
+
+    Raises `JobError` after `timeout` seconds: some backend failures leave the job
+    running and create no notification.
     """
     _require_id(dataset_id, "dataset_id", _DATASET_HINT)
     event = "VALIDATION_RELEASE_FINISHED_EVENT" if released else "VALIDATION_FINISHED_EVENT"
-    baseline = _latest_notification_ms(client, dataset_id, event)
+    baseline = _newest_validation_event(client, dataset_id, event)[0]
     try:
-        client.validation.start_validation(dataset_id, released=released)
+        job_id = client.validation.start_validation(
+            dataset_id, released=released, dataflow_id=dataflow_id, provider_id=provider_id
+        )
     except ForbiddenError as err:
         raise _hinted(err, _FORBIDDEN_HINT) from err
     deadline = time.monotonic() + timeout
-    while _latest_notification_ms(client, dataset_id, event) <= baseline:
+    if job_id is not None:
+        answer = _wait_validation_job(
+            client,
+            job_id,
+            dataset_id,
+            dataflow_id,
+            provider_id,
+            deadline=deadline,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
+        if answer is not None:
+            errors = validation_errors(client, dataset_id, dataflow_id, data_lake=data_lake)
+            if answer.get("info"):
+                errors.attrs["validation_note"] = str(answer["info"])
+                warnings.warn(
+                    f"Validation job {job_id} finished with a note: {answer['info']}",
+                    RuntimeWarning,
+                    stacklevel=caller_stacklevel(),
+                )
+            return errors
+    while True:
+        ms, kind, content = _newest_validation_event(client, dataset_id, event)
+        if ms > baseline:
+            status = _validation_failure_status(kind)
+            if status is None:
+                break
+            error = content.get("error")
+            raise JobError(
+                f"Validation of dataset {dataset_id} ended with {kind}"
+                + (f": {error}" if error else ""),
+                status=status,
+                info=str(error) if error else None,
+            )
         if time.monotonic() >= deadline:
             raise JobError(
                 f"No {event} notification for dataset {dataset_id} within {timeout:g} "
-                "seconds (the validation may still be running, or it failed: a failed "
-                "run has no event of its own)"
+                "seconds (the validation may still be running, or it failed without "
+                "leaving a notification)"
             )
         time.sleep(poll_interval)
     return validation_errors(client, dataset_id, dataflow_id, data_lake=data_lake)

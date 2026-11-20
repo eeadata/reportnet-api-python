@@ -606,6 +606,7 @@ Start a validation, wait until it finishes, return `validation_errors()`.
 | `dataset_id` | `int` | yes |  |  |
 | `dataflow_id` | `int` | yes |  |  |
 | `released` | `bool` | no | `False` |  |
+| `provider_id` | `int \| None` | no | `None` |  |
 | `timeout` | `float` | no | `600.0` |  |
 | `poll_interval` | `float` | no | `3.0` |  |
 | `data_lake` | `bool \| None` | no | `None` |  |
@@ -613,17 +614,34 @@ Start a validation, wait until it finishes, return `validation_errors()`.
 **Returns:** `pd.DataFrame`
 
 `data_lake` is passed to `validation_errors()` (None: detect from `bigData`).
+`provider_id` goes to the start and the poll; a provider-scoped (reporter)
+ApiKey needs it there.
 
-WRITES: replaces the dataset's validation results and takes a dataset lock.
-The completion signal is the user notification the backend creates when a run
-ends (`VALIDATION_FINISHED_EVENT`, or `VALIDATION_RELEASE_FINISHED_EVENT` with
-`released=True`), read from `/notification/findUserNotifications`: the dataset
-has no status field to poll (live, the sandbox). A run took
-about 35-55 s there. Only the calling user's notifications are visible, and a
-failed run has no event of its own here, so it ends as a `JobError` timeout.
-Notification times are server-side, so a newer one than any seen before the
-start counts; a run started by someone else at the same moment could be
-mistaken for this one. Raises `JobError` after `timeout` seconds.
+WRITES: replaces the dataset's validation results and takes a dataset lock (a
+second start while one runs gets `LockedError`, 423). Runs took about 35-100 s
+on the sandbox.
+
+How the end is detected: the current backend answers the start with the
+validation job's id, so the job is polled (`pollForJobStatus`, as for imports
+and exports). A job that ends FAILED, REFUSED or CANCELED raises `JobError`
+with the job's `status` and `info`; a FINISHED job with an `info` text (for
+example "There are canceled validation tasks", so the results may be partial)
+warns with it and puts it in the result's `attrs["validation_note"]`. Read from the
+backend source (`MasterOneVersion` branch); the job polling is not yet tested
+live for validations.
+
+Without a job id (older backends), or when the poll route is refused, the
+signal is the user notification the backend creates when a run ends
+(`VALIDATION_FINISHED_EVENT`, or `VALIDATION_RELEASE_FINISHED_EVENT` with
+`released=True`), read from `/notification/findUserNotifications` (live, the
+sandbox). A newer refused, canceled or `VALIDATION_FAILED_*` notification
+raises `JobError` instead. Only the calling user's notifications are visible,
+and their times are server-side, so a newer one than any seen before the start
+counts; a run started by someone else at the same moment could be mistaken
+for this one.
+
+Raises `JobError` after `timeout` seconds: some backend failures leave the job
+running and create no notification.
 
 ### validation_errors
 

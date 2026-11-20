@@ -11,6 +11,16 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
   gets a definite warning pointing to `export_to_file()`; a dataflow that answers
   `bigData: false` gets no warning, since its tables really are empty. If the lookup
   fails or its answer does not say, the old "may be a data lake" warning stays.
+- `validate_and_wait` (and `Dataset.validate`) now polls the validation job: the
+  current backend answers `validation.start_validation` with the job's id, which
+  that method now returns (`None` on backends that answer an empty body). A job that
+  ends FAILED, REFUSED or CANCELED raises `JobError` with the job's status and
+  `info` right away, instead of waiting for the timeout; a finished job with a note
+  warns with it and stores it in the result's `attrs["validation_note"]`. Without a
+  job id, or when polling is refused, it waits for the user notification as before,
+  and now also stops on a refused, canceled or failed notification. New keyword
+  `provider_id` (the handle passes its own); `start_validation` also takes
+  `dataflow_id` and `provider_id`.
 
 ## 0.1.3 (2026-11-19)
 

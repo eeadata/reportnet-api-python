@@ -166,6 +166,7 @@ Start a validation, wait for it, return the failures (`easy.validate_and_wait`).
 **Returns:** `pd.DataFrame`
 
 Replaces the dataset's validation results and locks the dataset while it runs.
+The handle's `provider_id` is passed unless you give one.
 
 ### Dataset.validation_errors
 
