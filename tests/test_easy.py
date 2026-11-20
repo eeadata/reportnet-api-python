@@ -195,14 +195,38 @@ def test_read_tables_no_warning_when_relational_export_is_empty(
     assert not [w for w in recwarn if issubclass(w.category, RuntimeWarning)]
 
 
+@pytest.mark.parametrize(
+    "lookup",
+    [
+        httpx.Response(403),
+        httpx.Response(200, content=b""),  # the route swallows its own errors
+        httpx.Response(200, json={}),
+        httpx.Response(200, json={"bigData": None}),
+        httpx.Response(200, text="<html>gateway</html>"),
+        httpx.Response(200, json=[1, 2]),
+    ],
+)
 @respx.mock
-def test_read_tables_vague_warning_when_lake_lookup_fails(no_schema_check: None) -> None:
+def test_read_tables_vague_warning_when_lake_lookup_does_not_say(
+    no_schema_check: None, lookup: httpx.Response
+) -> None:
     respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
         json={"tables": [{"tableName": "T", "records": []}]}
     )
-    respx.get(f"{BASE}/dataflow/v1/1").respond(403)
+    respx.get(f"{BASE}/dataflow/v1/1").mock(return_value=lookup)
     with pytest.warns(RuntimeWarning, match=r"may be\s+in a data-lake dataflow"):
         easy.read_tables(easy.connect("k"), 7, 1)
+
+
+@respx.mock
+def test_read_tables_lake_lookup_passes_provider_id(no_schema_check: None) -> None:
+    respx.get(url__regex=rf"{BASE}/dataset/v1/.*").respond(
+        json={"tables": [{"tableName": "T", "records": []}]}
+    )
+    flow = respx.get(f"{BASE}/dataflow/v1/1").respond(json={"bigData": True})
+    with pytest.warns(RuntimeWarning, match="is a data-lake dataflow"):
+        easy.read_tables(easy.connect("k"), 7, 1, provider_id=60)
+    assert flow.calls[-1].request.url.params["providerId"] == "60"
 
 
 @respx.mock

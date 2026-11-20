@@ -575,9 +575,9 @@ from the answer.
 Data-lake caveat: for a dataflow with `bigData: true` this route answers `200`
 with 0 rows even when data exists (live-tested). When a result has no rows at
 all, the dataflow's `bigData` flag is looked up (one extra call): a lake gets a
-`RuntimeWarning` pointing to `export_to_file()` (job export), a non-lake dataflow
-gets none (the tables are empty), and if the lookup fails the warning says the
-dataset may be in a lake.
+`RuntimeWarning` pointing to `export_to_file()` (job export), a dataflow that
+answers `bigData: false` gets none (the tables are empty), and if the lookup
+fails or does not say, the warning says the dataset may be in a lake.
 
 Values arrive from the backend as text, empty cells as `''`. With
 `dtypes="schema"` columns are converted using the field types in the dataset

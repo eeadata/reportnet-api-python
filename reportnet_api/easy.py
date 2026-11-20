@@ -273,6 +273,23 @@ def is_data_lake(client: ReportnetClient, dataflow_id: int) -> bool:
     return bool((flow or {}).get("bigData"))
 
 
+def _big_data_flag(
+    client: ReportnetClient, dataflow_id: int, provider_id: int | None
+) -> bool | None:
+    """The dataflow's `bigData` flag, or None when the answer does not say.
+
+    Advisory only (it picks a warning), so it never raises: a refused or failed
+    call, an empty 200 (the route swallows its own errors) or a body without a
+    boolean `bigData` all give None.
+    """
+    try:
+        flow = client.dataflow.dataflow_datasets(dataflow_id, provider_id=provider_id)
+    except (ReportnetAPIError, httpx.HTTPError, ValueError):
+        return None
+    flag = flow.get("bigData") if isinstance(flow, dict) else None
+    return flag if isinstance(flag, bool) else None
+
+
 _ERROR_COLUMNS = [
     "short_code",
     "level",
@@ -709,10 +726,7 @@ def _collect_tables(
     if not any(collected.values()):
         # Only looked up here: a lake answers 200 with 0 rows (live-tested), so an
         # empty result is the one case where `bigData` changes what it means.
-        try:
-            lake: bool | None = is_data_lake(client, dataflow_id)
-        except (ReportnetAPIError, httpx.HTTPError):
-            lake = None  # the rows are already read: never fail over a warning
+        lake = _big_data_flag(client, dataflow_id, provider_id)
         if lake:
             warnings.warn(
                 f"The ETL export answered with no rows: dataflow {dataflow_id} is a "
@@ -769,9 +783,9 @@ def read_tables(
     Data-lake caveat: for a dataflow with `bigData: true` this route answers `200`
     with 0 rows even when data exists (live-tested). When a result has no rows at
     all, the dataflow's `bigData` flag is looked up (one extra call): a lake gets a
-    `RuntimeWarning` pointing to `export_to_file()` (job export), a non-lake dataflow
-    gets none (the tables are empty), and if the lookup fails the warning says the
-    dataset may be in a lake.
+    `RuntimeWarning` pointing to `export_to_file()` (job export), a dataflow that
+    answers `bigData: false` gets none (the tables are empty), and if the lookup
+    fails or does not say, the warning says the dataset may be in a lake.
 
     Values arrive from the backend as text, empty cells as `''`. With
     `dtypes="schema"` columns are converted using the field types in the dataset
