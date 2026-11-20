@@ -48,6 +48,24 @@ def _check(values: list[str] | None, allowed: tuple[str, ...], what: str) -> lis
     return list(values)
 
 
+def _start_params(
+    released: bool, dataflow_id: int | None, provider_id: int | None
+) -> dict[str, str] | None:
+    params = {"released": "true"} if released else {}
+    if dataflow_id is not None:
+        params["dataflowId"] = str(dataflow_id)
+    if provider_id is not None:
+        params["providerId"] = str(provider_id)
+    return params or None
+
+
+def _job_id_of_body(text: str) -> int | None:
+    # `MasterOneVersion`'s JobControllerImpl#addValidationJob returns `Long jobId`;
+    # `develop` and `MasterDataLakes` return void (an empty body).
+    body = text.strip()
+    return int(body) if body.isdigit() else None
+
+
 def _list_params(
     page_num: int,
     page_size: int,
@@ -77,26 +95,37 @@ class ValidationResource:
     def __init__(self, client: ReportnetClient) -> None:
         self._client = client
 
-    def start_validation(self, dataset_id: int, *, released: bool = False) -> None:
+    def start_validation(
+        self,
+        dataset_id: int,
+        *,
+        released: bool = False,
+        dataflow_id: int | None = None,
+        provider_id: int | None = None,
+    ) -> int | None:
         """PUT /orchestrator/jobs/addValidationJob/{datasetId}: queue a validation.
 
         The route the Reportnet UI's "Validate" button calls. It only queues an
-        Orchestrator job and returns None (live, 2026-11-06: the body was a bare
-        number, `44570`, not understood and not used here). No status is exposed on
-        a data-lake dataset's listing entry; completion shows as a
-        `VALIDATION_FINISHED_EVENT` user notification
-        (`GET /notification/findUserNotifications`), which `easy.validate_and_wait()`
-        polls. Read the results with `list_group_validations()` (or `_dl()`). This WRITES: it replaces the dataset's
-        existing validation results and takes a dataset lock (a second start while
-        one runs may get `423`). Roles: stewards, custodians, lead reporter,
-        reporter write and similar (see `JobControllerImpl`), or ADMIN. `released`
-        is for validating a dataset that is being released.
+        Orchestrator job and returns the job's id (the backend's
+        `MasterOneVersion` branch answers it as a bare number; live, 2026-11-06,
+        `44570`), or None when the body is empty (older backends). Poll the id
+        with `pollForJobStatus` (`easy.validate_and_wait()` does). Completion
+        also shows as a `VALIDATION_FINISHED_EVENT` user notification
+        (`GET /notification/findUserNotifications`). Read the results with
+        `list_group_validations()` (or `_dl()`). This WRITES: it replaces the
+        dataset's existing validation results and takes a dataset lock (a second
+        start while one runs gets `423`). Roles: stewards, custodians, lead
+        reporter, reporter write and similar (see `JobControllerImpl`), or ADMIN.
+        `dataflow_id` and `provider_id` are optional; on `MasterOneVersion` they
+        enable the route's ApiKey check (backend source, not tested live).
+        `released` is for validating a dataset that is being released.
         """
-        self._client.request(
+        response = self._client.request(
             "PUT",
             f"/orchestrator/jobs/addValidationJob/{dataset_id}",
-            params={"released": "true"} if released else None,
+            params=_start_params(released, dataflow_id, provider_id),
         )
+        return _job_id_of_body(response.text)
 
     def list_validations(
         self,
@@ -306,13 +335,21 @@ class AsyncValidationResource:
     def __init__(self, client: AsyncReportnetClient) -> None:
         self._client = client
 
-    async def start_validation(self, dataset_id: int, *, released: bool = False) -> None:
+    async def start_validation(
+        self,
+        dataset_id: int,
+        *,
+        released: bool = False,
+        dataflow_id: int | None = None,
+        provider_id: int | None = None,
+    ) -> int | None:
         """Async counterpart of ValidationResource.start_validation."""
-        await self._client.request(
+        response = await self._client.request(
             "PUT",
             f"/orchestrator/jobs/addValidationJob/{dataset_id}",
-            params={"released": "true"} if released else None,
+            params=_start_params(released, dataflow_id, provider_id),
         )
+        return _job_id_of_body(response.text)
 
     async def list_validations(
         self,

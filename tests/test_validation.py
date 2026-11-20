@@ -26,6 +26,21 @@ def test_start_validation_sends_released_only_when_true() -> None:
             assert route.calls[-1].request.url.params["released"] == "true"
 
 
+def test_start_validation_returns_job_id_and_sends_ids() -> None:
+    # The current backend answers the new job's id as a bare number (live: `44570`);
+    # older branches answer an empty body.
+    with respx.mock(base_url=BASE_URL) as mock:
+        route = mock.put("/orchestrator/jobs/addValidationJob/7").mock(
+            side_effect=[httpx.Response(200, text="44570"), httpx.Response(200)]
+        )
+        with ReportnetClient(BASE_URL, "t") as c:
+            assert c.validation.start_validation(7, dataflow_id=5, provider_id=11) == 44570
+            params = route.calls[-1].request.url.params
+            assert (params["dataflowId"], params["providerId"]) == ("5", "11")
+            assert c.validation.start_validation(7) is None
+            assert "dataflowId" not in route.calls[-1].request.url.params
+
+
 def test_list_group_validations_params_and_validation() -> None:
     with respx.mock(base_url=BASE_URL) as mock:
         route = mock.get("/validation/listGroupValidations/7").mock(
@@ -105,7 +120,9 @@ def test_export_times_out(tmp_path: Path) -> None:
 def test_async_routes(tmp_path: Path) -> None:
     async def run() -> None:
         with respx.mock(base_url=BASE_URL) as mock:
-            mock.put("/orchestrator/jobs/addValidationJob/7").mock(return_value=httpx.Response(200))
+            mock.put("/orchestrator/jobs/addValidationJob/7").mock(
+                return_value=httpx.Response(200, text="12")
+            )
             mock.get("/validation/listGroupValidations/7").mock(
                 return_value=httpx.Response(200, json=LISTING)
             )
@@ -114,7 +131,7 @@ def test_async_routes(tmp_path: Path) -> None:
                 side_effect=[httpx.Response(404), httpx.Response(200, content=b"x\n")]
             )
             async with AsyncReportnetClient(BASE_URL, "t") as c:
-                await c.validation.start_validation(7)
+                assert await c.validation.start_validation(7, dataflow_id=5) == 12
                 assert await c.validation.list_group_validations(7) == LISTING
                 await c.validation.export_validations_to_file(
                     7, tmp_path / "v.csv", poll_interval=0.01

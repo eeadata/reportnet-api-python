@@ -4,6 +4,18 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## Unreleased
+
+- `validate_and_wait` (and `Dataset.validate`) now polls the validation job: the
+  current backend answers `validation.start_validation` with the job's id, which
+  that method now returns (`None` on backends that answer an empty body). A job that
+  ends FAILED, REFUSED or CANCELED raises `JobError` with the job's status and
+  `info` right away, instead of waiting for the timeout; a finished job with a note
+  warns with it. Without a job id, or when polling is refused, it waits for the
+  user notification as before, and now also stops on a refused, canceled or failed
+  notification. New keyword `provider_id` (the handle passes its own);
+  `start_validation` also takes `dataflow_id` and `provider_id`.
+
 ## 0.1.3 (2026-11-19)
 
 - Downloads (`client.download()` and everything built on it, such as `export_to_file`)

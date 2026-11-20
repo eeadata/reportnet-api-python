@@ -204,24 +204,29 @@ queue a validation.
 |---|---|---|---|---|
 | `dataset_id` | `int` | yes |  |  |
 | `released` | `bool` | no | `False` |  |
+| `dataflow_id` | `int \| None` | no | `None` |  |
+| `provider_id` | `int \| None` | no | `None` |  |
 
-**Returns:** `None`
+**Returns:** `int | None`
 
 **Allowed roles:**
 
 Not stated in the API spec.
 
 The route the Reportnet UI's "Validate" button calls. It only queues an
-Orchestrator job and returns None (live, 2026-11-06: the body was a bare
-number, `44570`, not understood and not used here). No status is exposed on
-a data-lake dataset's listing entry; completion shows as a
-`VALIDATION_FINISHED_EVENT` user notification
-(`GET /notification/findUserNotifications`), which `easy.validate_and_wait()`
-polls. Read the results with `list_group_validations()` (or `_dl()`). This WRITES: it replaces the dataset's
-existing validation results and takes a dataset lock (a second start while
-one runs may get `423`). Roles: stewards, custodians, lead reporter,
-reporter write and similar (see `JobControllerImpl`), or ADMIN. `released`
-is for validating a dataset that is being released.
+Orchestrator job and returns the job's id (the backend's
+`MasterOneVersion` branch answers it as a bare number; live, 2026-11-06,
+`44570`), or None when the body is empty (older backends). Poll the id
+with `pollForJobStatus` (`easy.validate_and_wait()` does). Completion
+also shows as a `VALIDATION_FINISHED_EVENT` user notification
+(`GET /notification/findUserNotifications`). Read the results with
+`list_group_validations()` (or `_dl()`). This WRITES: it replaces the
+dataset's existing validation results and takes a dataset lock (a second
+start while one runs gets `423`). Roles: stewards, custodians, lead
+reporter, reporter write and similar (see `JobControllerImpl`), or ADMIN.
+`dataflow_id` and `provider_id` are optional; on `MasterOneVersion` they
+enable the route's ApiKey check (backend source, not tested live).
+`released` is for validating a dataset that is being released.
 
 ### start_validations_export
 

@@ -136,7 +136,9 @@ class Dataset:
         """Start a validation, wait for it, return the failures (`easy.validate_and_wait`). WRITES.
 
         Replaces the dataset's validation results and locks the dataset while it runs.
+        The handle's `provider_id` is passed unless you give one.
         """
+        kwargs.setdefault("provider_id", self.provider_id)
         return easy.validate_and_wait(self.client, self.id, self.dataflow_id, **kwargs)
 
     def export_validations(self, dest: str | os.PathLike[str], **kwargs: Any) -> Path:

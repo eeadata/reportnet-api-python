@@ -310,7 +310,7 @@ def test_export_upload_validate_delegate(
     assert calls == [
         ("x", 4, 5, {"file_format": "parquet"}),
         ("u", 4, 5, {"replace": True, "provider_id": 11}),
-        ("v", 4, 5, {"released": True}),
+        ("v", 4, 5, {"released": True, "provider_id": 11}),
     ]
 
 
