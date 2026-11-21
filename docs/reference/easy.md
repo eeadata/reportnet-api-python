@@ -627,8 +627,10 @@ and exports). A job that ends FAILED, REFUSED or CANCELED raises `JobError`
 with the job's `status` and `info`; a FINISHED job with an `info` text (for
 example "There are canceled validation tasks", so the results may be partial)
 warns with it and puts it in the result's `attrs["validation_note"]`. Read from the
-backend source (`MasterOneVersion` branch); the job polling is not yet tested
-live for validations.
+backend source (`MasterOneVersion` branch) and checked live on the sandbox
+(Bearer): the start answered a job id and polling it reached FINISHED. A start
+while another job runs on the dataset gets `LockedError` (423) at once. The
+FAILED/REFUSED/CANCELED and FINISHED-with-note endings are tested with mocks only.
 
 Without a job id (older backends), or when the poll route is refused, the
 signal is the user notification the backend creates when a run ends
