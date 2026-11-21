@@ -6,6 +6,9 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
 ## Unreleased
 
+- `datasets.import_big_file_data` docstring: on the current backend a data-lake import
+  answers a job map like any other import (checked live on the sandbox); the empty-body
+  `{}` case is for older backends.
 - `read_tables` (and `read_table`, `read_records`, `read_all_records`): when the export
   has no rows at all, the dataflow's `bigData` flag is looked up. A data-lake dataflow
   gets a definite warning pointing to `export_to_file()`; a dataflow that answers
