@@ -634,6 +634,78 @@ def list_providers(client: ReportnetClient, group_id: int = 1) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["provider_id", "code", "label", "group_id"])
 
 
+_REPRESENTATIVE_COLUMNS = [
+    "representative_id",
+    "provider_id",
+    "code",
+    "label",
+    "lead_reporters",
+    "has_datasets",
+    "receipt_downloaded",
+    "receipt_outdated",
+    "restrict_from_public",
+]
+
+
+def _providers_by_id(
+    client: ReportnetClient, reps: list[dict[str, Any]]
+) -> dict[int, dict[str, Any]]:
+    """Provider records for the representatives: one call per group, then per stray id."""
+    found: dict[int, dict[str, Any]] = {}
+    groups = {r.get("dataProviderGroupId") for r in reps}
+    for group in sorted(g for g in groups if isinstance(g, int)):
+        for p in client.representative.data_providers(group) or []:
+            if isinstance(p.get("id"), int):
+                found[p["id"]] = p
+    for rep in reps:
+        pid = rep.get("dataProviderId")
+        if isinstance(pid, int) and pid not in found:
+            found[pid] = client.representative.data_provider(pid) or {}
+    return found
+
+
+def list_representatives(
+    client: ReportnetClient, dataflow_id: int, *, include_contacts: bool = False
+) -> pd.DataFrame:
+    """A dataflow's representatives (the countries assigned to it), one row each.
+
+    Columns: representative_id, provider_id, code and label (the country, joined
+    from the provider listing), lead_reporters (how many), has_datasets,
+    receipt_downloaded, receipt_outdated and restrict_from_public. Lead reporter
+    email addresses are personal data, so they are left out unless
+    `include_contacts=True`, which adds a `lead_reporter_emails` list column. A
+    dataflow without representatives gives an empty table.
+    """
+    pd = _pandas()
+    _require_id(dataflow_id, "dataflow_id", _DATAFLOW_HINT)
+    try:
+        reps = client.representative.representatives(dataflow_id) or []
+        providers = _providers_by_id(client, reps)
+    except ForbiddenError as err:
+        raise _hinted(err, _FORBIDDEN_HINT) from err
+    rows = []
+    for rep in reps:
+        pid = rep.get("dataProviderId")
+        provider = providers.get(pid, {}) if isinstance(pid, int) else {}
+        leads = rep.get("leadReporters") or []
+        row: dict[str, Any] = {
+            "representative_id": rep.get("id"),
+            "provider_id": pid,
+            "code": provider.get("code"),
+            "label": provider.get("label"),
+            "lead_reporters": len(leads),
+            "has_datasets": rep.get("hasDatasets"),
+            "receipt_downloaded": rep.get("receiptDownloaded"),
+            "receipt_outdated": rep.get("receiptOutdated"),
+            "restrict_from_public": rep.get("restrictFromPublic"),
+        }
+        if include_contacts:
+            row["lead_reporter_emails"] = [lead.get("email") for lead in leads]
+        rows.append(row)
+    columns = _REPRESENTATIVE_COLUMNS + (["lead_reporter_emails"] if include_contacts else [])
+    return pd.DataFrame(rows, columns=columns)
+
+
 def list_tables(client: ReportnetClient, dataset_id: int) -> pd.DataFrame:
     """Tables defined in a dataset's schema: table_id and name."""
     pd = _pandas()
@@ -1570,6 +1642,7 @@ Reportnet cheat sheet (full reference: docs/reference/index.md; terms: docs/glos
 2. Find ids      list_dataflows(client)              # dataflow ids and names
                  list_datasets(client, dataflow_id)  # dataset ids (NOT the dataflow id)
                  flow = find_dataflow(client, id_or_name); flow.dataset(id_or_country)
+                 list_providers(client); list_representatives(client, dataflow_id)
 3. Read          list_tables(client, dataset_id); read_table(client, dataset_id, dataflow_id)
                  read_tables(...) for all tables; read_many(datasets, table) to stack
 4. Validation    validation_summary / validation_errors; validate_and_wait (WRITES)

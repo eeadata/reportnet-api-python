@@ -361,3 +361,101 @@ def test_lead_reporter_errors_propagate() -> None:
             with pytest.raises(ReportnetAPIError) as excinfo:
                 client.representative.create_representative(5, data_provider_id=2)
             assert excinfo.value.status_code == 400
+
+
+GREECE = {"id": 60, "group": None, "label": "Greece", "code": "EL", "groupId": 2}
+LIVE_REPS = [
+    {
+        "id": 7,
+        "dataProviderId": 60,
+        "dataProviderGroupId": 2,
+        "leadReporters": [
+            {"id": 1, "email": "a@example.org", "representativeId": 7, "invalid": False},
+            {"id": 2, "email": "b@example.org", "representativeId": 7, "invalid": True},
+        ],
+        "receiptDownloaded": False,
+        "receiptOutdated": True,
+        "hasDatasets": True,
+        "restrictFromPublic": False,
+    },
+    {**REPS[0], "id": 8},
+]
+REP_COLUMNS = [
+    "representative_id",
+    "provider_id",
+    "code",
+    "label",
+    "lead_reporters",
+    "has_datasets",
+    "receipt_downloaded",
+    "receipt_outdated",
+    "restrict_from_public",
+]
+
+
+def _mock_live_reps(mock: respx.MockRouter) -> None:
+    mock.get("/representative/v1/dataflow/5").mock(return_value=httpx.Response(200, json=LIVE_REPS))
+    mock.get("/representative/dataProvider/2").mock(return_value=httpx.Response(200, json=[GREECE]))
+    mock.get("/representative/dataProvider/1").mock(
+        return_value=httpx.Response(200, json=PROVIDERS)
+    )
+
+
+def test_easy_list_representatives_joins_countries_and_hides_emails() -> None:
+    pytest.importorskip("pandas")
+    with respx.mock(base_url=BASE_URL) as mock:
+        _mock_live_reps(mock)
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            df = easy.list_representatives(client, 5)
+    assert list(df.columns) == REP_COLUMNS
+    assert df["code"].tolist() == ["EL", "AT"]
+    assert df["label"].tolist() == ["Greece", "Austria"]
+    assert df["lead_reporters"].tolist() == [2, 0]
+    assert df["receipt_outdated"].tolist() == [True, False]
+    assert "@" not in df.to_csv()
+
+
+def test_easy_list_representatives_include_contacts() -> None:
+    pytest.importorskip("pandas")
+    with respx.mock(base_url=BASE_URL) as mock:
+        _mock_live_reps(mock)
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            df = easy.list_representatives(client, 5, include_contacts=True)
+    assert list(df.columns) == [*REP_COLUMNS, "lead_reporter_emails"]
+    assert df["lead_reporter_emails"].tolist() == [["a@example.org", "b@example.org"], []]
+
+
+def test_easy_list_representatives_one_lookup_per_group_and_fallback() -> None:
+    pytest.importorskip("pandas")
+    reps = [{**LIVE_REPS[0], "id": 7}, {**LIVE_REPS[0], "id": 9, "dataProviderId": 61}]
+    stray = {"id": 61, "group": None, "label": "Iceland", "code": "IS", "groupId": 2}
+    with respx.mock(base_url=BASE_URL) as mock:
+        mock.get("/representative/v1/dataflow/5").mock(return_value=httpx.Response(200, json=reps))
+        group = mock.get("/representative/dataProvider/2").mock(
+            return_value=httpx.Response(200, json=[GREECE])
+        )
+        single = mock.get("/representative/dataProvider/id/61").mock(
+            return_value=httpx.Response(200, json=stray)
+        )
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            df = easy.list_representatives(client, 5)
+    assert group.call_count == 1
+    assert single.call_count == 1
+    assert df["code"].tolist() == ["EL", "IS"]
+
+
+def test_easy_list_representatives_empty() -> None:
+    pytest.importorskip("pandas")
+    with respx.mock(base_url=BASE_URL) as mock:
+        mock.get("/representative/v1/dataflow/5").mock(return_value=httpx.Response(200, json=[]))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            df = easy.list_representatives(client, 5)
+    assert df.empty
+    assert list(df.columns) == REP_COLUMNS
+
+
+def test_easy_list_representatives_rejects_bad_id() -> None:
+    pytest.importorskip("pandas")
+    with ReportnetClient(base_url=BASE_URL, token="t") as client:
+        with pytest.raises(ValueError, match="dataflow_id"):
+            easy.list_representatives(client, 0)

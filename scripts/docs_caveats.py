@@ -311,9 +311,10 @@ CAVEATS: dict[str, list[Caveat]] = {
     # --- representative
     "representatives": [
         (
-            "Live-checked (ApiKey and Bearer) only on a dataflow with no representatives, so the "
-            "empty list is verified and the item shape comes from the backend source. "
-            "`leadReporters` include email addresses (personal data).",
+            "Live-checked (ApiKey and Bearer) on a dataflow with no representatives (empty "
+            "list) and with Bearer on a sandbox dataflow with one: the item shape matches the "
+            "list above, and `leadReporters` items are `{id, email, representativeId, invalid}` "
+            "(email addresses: personal data). `easy.list_representatives` adds the country.",
             "",
         )
     ],

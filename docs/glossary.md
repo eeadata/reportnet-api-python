@@ -14,8 +14,9 @@ integers; the most common mistake is passing a dataflow id where a dataset id be
   `easy.list_tables` lists them and `read_table(..., table_name=...)` picks one.
 - **Provider** (data provider): the reporting party, usually a country, that owns one
   reporting dataset (`provider_id`). `easy.list_providers` lists the known ones.
-- **Representative**: a provider assigned to a dataflow, with its lead reporters
-  (`client.representative`).
+- **Representative**: a provider assigned to a dataflow, with its lead reporters.
+  `easy.list_representatives` lists them with the country code and name; lead reporter
+  emails only with `include_contacts=True`.
 - **Lead reporter**: the person (by email) who reports for a provider.
 - **Custodian / Steward / Reporter**: roles on a dataflow. A login (Bearer) token carries
   the user's roles; an ApiKey carries Reporter-level access only.
