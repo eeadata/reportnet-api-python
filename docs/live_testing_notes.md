@@ -1030,3 +1030,27 @@ Dataflow `<sandbox dataflow>` answers `bigData: true`. For its datasets (`<sandb
   `/dataset/exportFileDL`, `/dataset/{id}/downloadFileDL`. The validations export
   (`/validation/export/{id}` then `/validation/downloadFile/{id}`) has no `DL`
   variant in the UI config and gave no file on three tries for `<sandbox dataset>`.
+
+## P10-19 — validation job endings (live, 2026-11-22, sandbox, Bearer)
+
+`easy.validate_and_wait` on a data-lake dataset of `<sandbox dataflow>`, with the
+validation job cancelled from a second thread through `PUT
+/orchestrator/jobs/cancelJob/{jobId}?dataflowId=&datasetId=` (a route for dataflow
+custodians, stewards and lead reporters; backend branch `MasterOneVersion`):
+
+- The job is `QUEUED` for about the first 4 s, then `IN_PROGRESS`. A cancel at
+  4.6 s answered `200` but did not stick: the job went on to `FINISHED` and
+  `validate_and_wait` returned the normal result. Cancelling a queued job is not
+  reliable.
+- Cancel at about 22 s with `jobShouldFail=true`: the poll answered `FAILED` (no
+  `info`) and `validate_and_wait` raised `JobError` with `status="FAILED"` at once.
+- Cancel at about 22 s with `jobInfo=ERROR_VALIDATION_FAILURE`: `CANCELED_BY_ADMIN`
+  with `info` "Validation failed due to system error. Please contact the Service
+  Desk for support."; `JobError.status`/`.info` carried both.
+- Both endings stayed as they were (re-polled minutes later). A new validation
+  started 5 s after each cancel was accepted, so no lock was left behind.
+- A refused start never becomes a job to poll: `addValidationJob` stores the job
+  as `REFUSED`, sends the refused notification and answers `423`
+  (`LockedError`), as seen on 2026-11-21.
+- Not produced: a plain `CANCELED` (only the backend's hourly cleanup of stuck
+  runs sets it) and `FINISHED` with an `info` note.
