@@ -8,7 +8,13 @@ import httpx
 import pytest
 import respx
 
-from reportnet_api import AsyncReportnetClient, ReportnetAPIError, ReportnetClient, ValidationError
+from reportnet_api import (
+    AsyncReportnetClient,
+    ReportnetAPIError,
+    ReportnetClient,
+    ServerError,
+    ValidationError,
+)
 
 BASE_URL = "https://api.reportnet.europa.eu"
 PAGE = {"dataflows": [{"id": 1, "name": "x"}], "totalRecords": 1, "filteredRecords": 1}
@@ -98,6 +104,22 @@ def test_dataflow_datasets_empty_body_is_none() -> None:
                 return await client.dataflow.dataflow_datasets(9)
 
         assert asyncio.run(run()) is None
+
+
+def test_dataflow_datasets_unknown_id_is_server_error() -> None:
+    # Live shape for an unknown id: the access check fails with a 500.
+    body = {
+        "status": 500,
+        "error": "Internal Server Error",
+        "message": (
+            "status 500 reading DataFlowControllerZuul#accessReferenceEntity(EntityClassEnum,Long)"
+        ),
+    }
+    with respx.mock(base_url=BASE_URL) as mock:
+        mock.get("/dataflow/v1/1").mock(return_value=httpx.Response(500, json=body))
+        with ReportnetClient(base_url=BASE_URL, token="t") as client:
+            with pytest.raises(ServerError):
+                client.dataflow.dataflow_datasets(1)
 
 
 def test_create_dataflow_returns_new_id() -> None:

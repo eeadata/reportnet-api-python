@@ -126,6 +126,13 @@ class DataflowResource:
         `page_size` and `page_num` (0-based); giving only one raises
         `ValueError`. A backend-side failure comes back as an empty 200 page,
         indistinguishable from "no dataflows".
+
+        `filters` is the web app's filter map, all values strings. Keys the
+        backend reads include `name`, `description`, `obligation`,
+        `legal_instrument`, `status` (`OPEN`, `CLOSED`, `DESIGN`), `pinned`
+        and date ranges such as `deadline_date_from`/`deadline_date_to`. The
+        key `role` (e.g. `"LEAD_REPORTER"`) keeps only the dataflows where
+        the user holds that role.
         """
         path, params, body = _list_request(kind, filters, order_header, asc, page_size, page_num)
         response = self._client.request("POST", path, params=params, json=body)
@@ -139,11 +146,15 @@ class DataflowResource:
         (`designDatasets`, `reportingDatasets`, `dataCollections`,
         `euDatasets`, `referenceDatasets`, `testDatasets`).
 
-        Reporters must pass `provider_id`. Requires a dataflow role (or a
-        matching ApiKey / data custodian-steward reference access).
+        Reporters must pass `provider_id`. Requires a dataflow role (including
+        national coordinator), a matching ApiKey, data custodian/steward
+        reference access, or the `ADMIN` role. Representatives are filtered to
+        the caller's own unless the caller is the dataflow's requester.
 
-        Returns `None` when the backend answers 200 with an empty body (it
-        swallows its own errors, e.g. for an unknown dataflow).
+        An unknown dataflow id answers `500` (`ServerError`): the access check
+        fails before the lookup. A dataflow the caller has no access to
+        answers `403`. Returns `None` when the backend answers 200 with an
+        empty body (it swallows its own errors after the access check).
         """
         params = {} if provider_id is None else {"providerId": provider_id}
         response = self._client.request("GET", f"/dataflow/v1/{dataflow_id}", params=params)
@@ -184,8 +195,9 @@ class DataflowResource:
         datasets, documents and representatives.
 
         `DataflowControllerImpl#deleteDataFlow`. Requires `DATAFLOW_STEWARD` or
-        `DATAFLOW_CUSTODIAN` on the dataflow. `423` while a schema import or
-        a schema copy into it is running. The backend logs and swallows its
+        `DATAFLOW_CUSTODIAN` on the dataflow; a `BUSINESS` dataflow needs an
+        admin (`403` otherwise). `423` while a schema import or a schema copy
+        into it is running. The backend logs and swallows its
         own failures (`DataflowServiceImpl#deleteDataFlow`), so a 200 does not
         prove the dataflow is gone: `dataflow_datasets()` afterwards does.
         """

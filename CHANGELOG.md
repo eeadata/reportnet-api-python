@@ -6,6 +6,11 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
 ## Unreleased
 
+- `dataflow` docstrings checked against the current backend source:
+  `dataflow_datasets` now says an unknown dataflow id answers 500 (not an empty
+  200), and lists the admin and national coordinator access; `dataflows` lists
+  the `filters` keys the backend reads; `delete_dataflow` notes that a Business
+  dataflow needs an admin.
 - New `easy.list_representatives(client, dataflow_id)`: the countries assigned to a
   dataflow as a table, with the country code and name joined from the provider
   listing (one lookup per provider group). Lead reporter email addresses are left out
