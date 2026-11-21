@@ -4,7 +4,7 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
-## Unreleased
+## 0.1.4 (2026-11-21)
 
 - `datasets.import_big_file_data` docstring: on the current backend a data-lake import
   answers a job map like any other import (checked live on the sandbox); the empty-body
