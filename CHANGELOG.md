@@ -20,7 +20,8 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
   job id, or when polling is refused, it waits for the user notification as before,
   and now also stops on a refused, canceled or failed notification. New keyword
   `provider_id` (the handle passes its own); `start_validation` also takes
-  `dataflow_id` and `provider_id`.
+  `dataflow_id` and `provider_id`. Checked live on the sandbox (normal run, and a
+  second start while one runs, which gets `LockedError`).
 
 ## 0.1.3 (2026-11-19)
 
