@@ -1114,11 +1114,14 @@ Import file to dataset data (Large files)
 | Design dataset | CUSTODIAN, STEWARD, EDITOR WRITE |
 | EU dataset | CUSTODIAN, STEWARD |
 
-Overrides the generated method. An empty response body returns `{}` (data lake
-datasets answer `void`: the import is done inside the request, MasterDataLakes `DatasetControllerImpl:391-422`;
-other datasets answer a job map), and `timeout` overrides the client's timeout for
-this call only (a lake import can run for minutes). `preparation_code` is sent as
-`code`.
+Overrides the generated method. The answer is a job map (`jobId`, `pollingUrl`;
+poll it with `jobs.wait_for_job`), also for data lake datasets on the current
+backend (`MasterOneVersion`; checked live on the sandbox, where a two-row lake
+import finished in about 20 s). Older backends answer a lake import with an
+empty body (`void`, the import is done inside the request; `MasterDataLakes`
+`DatasetControllerImpl:391-422`), returned as `{}`. `timeout` overrides the
+client's timeout for this call only (a lake import can run for minutes).
+`preparation_code` is sent as `code`.
 
 **Live-tested notes:**
 
