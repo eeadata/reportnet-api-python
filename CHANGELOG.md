@@ -4,7 +4,7 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
-## Unreleased
+## 0.2.0 (2026-11-22)
 
 - `easy.validate_and_wait`: a validation job that ends FAILED or CANCELED_BY_ADMIN now
   raises `JobError` naming the job and the dataset (`status` and `info` unchanged).
