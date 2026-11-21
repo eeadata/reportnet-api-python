@@ -1,6 +1,6 @@
 [project]
 name = "reportnet-api"
-version = "0.1.4"
+version = "0.2.0"
 description = "Python library for the EEA Reportnet 3 REST API"
 readme = "README.md"
 license = "MIT"
