@@ -6,6 +6,10 @@ release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
 ## Unreleased
 
+- `easy.validate_and_wait`: a validation job that ends FAILED or CANCELED_BY_ADMIN now
+  raises `JobError` naming the job and the dataset (`status` and `info` unchanged).
+  Both endings were checked live on the sandbox by cancelling a running job; the
+  docstring explains that a refused start is a `LockedError` (423), never a polled job.
 - `dataflow` docstrings checked against the current backend source:
   `dataflow_datasets` now says an unknown dataflow id answers 500 (not an empty
   200), and lists the admin and national coordinator access; `dataflows` lists

@@ -650,9 +650,14 @@ with the job's `status` and `info`; a FINISHED job with an `info` text (for
 example "There are canceled validation tasks", so the results may be partial)
 warns with it and puts it in the result's `attrs["validation_note"]`. Read from the
 backend source (`MasterOneVersion` branch) and checked live on the sandbox
-(Bearer): the start answered a job id and polling it reached FINISHED. A start
-while another job runs on the dataset gets `LockedError` (423) at once. The
-FAILED/REFUSED/CANCELED and FINISHED-with-note endings are tested with mocks only.
+(Bearer): the start answered a job id and polling it reached FINISHED. A
+refused start (another job runs on the dataset) never becomes a job to poll:
+the backend answers the start with `LockedError` (423) at once. A job
+cancelled while running (`/orchestrator/jobs/cancelJob`) ends FAILED or
+CANCELED_BY_ADMIN, with the `info` text if the cancel gave one; both were
+checked live on the sandbox, and the dataset was not left locked. A plain
+CANCELED (the backend's hourly cleanup of stuck runs) and the
+FINISHED-with-note ending are tested with mocks only.
 
 Without a job id (older backends), or when the poll route is refused, the
 signal is the user notification the backend creates when a run ends

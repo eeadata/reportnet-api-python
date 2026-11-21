@@ -381,6 +381,30 @@ def test_validate_and_wait_raises_when_the_job_fails(monkeypatch: pytest.MonkeyP
     assert caught.value.status == "FAILED" and caught.value.info == info
 
 
+@pytest.mark.parametrize(
+    ("answer", "expected"),
+    [
+        # Both seen live on the sandbox after cancelling a running validation job.
+        ({"status": "FAILED"}, "Validation job 44570 for dataset 9 ended FAILED"),
+        (
+            {"status": "CANCELED_BY_ADMIN", "info": "Stopped."},
+            "Validation job 44570 for dataset 9 ended CANCELED_BY_ADMIN: Stopped.",
+        ),
+    ],
+)
+@respx.mock
+def test_validate_and_wait_job_failure_names_job_and_dataset(
+    monkeypatch: pytest.MonkeyPatch, answer: dict[str, str], expected: str
+) -> None:
+    monkeypatch.setattr("reportnet_api.jobs.time.sleep", lambda s: None)
+    _job_backend([httpx.Response(200, json=answer)])
+    with pytest.raises(JobError) as caught:
+        easy.validate_and_wait(easy.connect("k"), 9, 5)
+    assert str(caught.value) == expected
+    assert caught.value.status == answer["status"]
+    assert caught.value.info == answer.get("info")
+
+
 @respx.mock
 def test_validate_and_wait_warns_on_finished_with_info(monkeypatch: pytest.MonkeyPatch) -> None:
     note = "There are canceled validation tasks. Please review and address the issues."
