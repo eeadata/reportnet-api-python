@@ -4,6 +4,13 @@ All notable changes are listed here. The project follows [Semantic Versioning](h
 while the major version is `0`, a **minor** release (0.x.0) may change the API, and a patch
 release (0.x.y) only fixes bugs. Breaking changes are called out below.
 
+## Unreleased
+
+- New `easy.list_representatives(client, dataflow_id)`: the countries assigned to a
+  dataflow as a table, with the country code and name joined from the provider
+  listing (one lookup per provider group). Lead reporter email addresses are left out
+  unless `include_contacts=True`. Also in `easy.guide()` and the glossary.
+
 ## 0.1.4 (2026-11-21)
 
 - `datasets.import_big_file_data` docstring: on the current backend a data-lake import

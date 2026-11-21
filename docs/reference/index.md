@@ -164,6 +164,7 @@ Every resource method also exists on `AsyncReportnetClient`, called with `await`
 - [`list_dataflows`](easy.md#list_dataflows): All dataflows visible to the credential, one row each (id, name, status, ...).
 - [`list_datasets`](easy.md#list_datasets): Datasets of a dataflow as a flat table: dataset_id, name, kind, provider_id.
 - [`list_providers`](easy.md#list_providers): Data providers of a group as a table: provider_id, code, label, group_id.
+- [`list_representatives`](easy.md#list_representatives): A dataflow's representatives (the countries assigned to it), one row each.
 - [`list_tables`](easy.md#list_tables): Tables defined in a dataset's schema: table_id and name.
 - [`read_all_records`](easy.md#read_all_records): Every table as ``{table name: list of row dicts}``, without pandas (see `read_records`).
 - [`read_many`](easy.md#read_many): One table from several dataset handles, stacked (see `handles.read_many`).

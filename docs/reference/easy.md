@@ -25,6 +25,7 @@ Hand-written helpers in `reportnet_api.easy`. They are plain functions, not meth
 - [list_dataflows](#list_dataflows)
 - [list_datasets](#list_datasets)
 - [list_providers](#list_providers)
+- [list_representatives](#list_representatives)
 - [list_tables](#list_tables)
 - [read_all_records](#read_all_records)
 - [read_many](#read_many)
@@ -447,6 +448,27 @@ Data providers of a group as a table: provider_id, code, label, group_id.
 A provider is a reporting country; `provider_id` is the `providerId` other
 calls take and `code` its country code. Group `1` is the member
 countries; `client.representative.data_provider_groups()` lists the groups.
+
+### list_representatives
+
+A dataflow's representatives (the countries assigned to it), one row each.
+
+**Call:** `easy.list_representatives(...)`
+
+| Argument | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `client` | `ReportnetClient` | yes |  |  |
+| `dataflow_id` | `int` | yes |  |  |
+| `include_contacts` | `bool` | no | `False` |  |
+
+**Returns:** `pd.DataFrame`
+
+Columns: representative_id, provider_id, code and label (the country, joined
+from the provider listing), lead_reporters (how many), has_datasets,
+receipt_downloaded, receipt_outdated and restrict_from_public. Lead reporter
+email addresses are personal data, so they are left out unless
+`include_contacts=True`, which adds a `lead_reporter_emails` list column. A
+dataflow without representatives gives an empty table.
 
 ### list_tables
 
