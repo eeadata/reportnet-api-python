@@ -49,7 +49,7 @@ Custodian or Steward role, use a login (Bearer) token.**
 from reportnet_api.easy import connect_interactive, check_access
 
 client = connect_interactive()
-check_access(client)          # read-only; add a dataflow id to test access to it
+check_access(client)  # read-only; add a dataflow id to test access to it
 ```
 
 ## Common errors

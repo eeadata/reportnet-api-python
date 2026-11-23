@@ -131,12 +131,14 @@ with ReportnetClient(base_url="https://api.reportnet.europa.eu", token="<jwt>") 
 import asyncio
 from reportnet_api import AsyncReportnetClient
 
+
 async def main() -> None:
     async with AsyncReportnetClient(
         base_url="https://api.reportnet.europa.eu", token="<jwt>"
     ) as client:
         schema = await client.dataset_schema.find_data_schema_by_dataset_id(dataset_id=123)
         await client.datasets.import_file_data(dataset_id=123, file="local/path.csv")  # WRITES data
+
 
 asyncio.run(main())
 ```
@@ -148,7 +150,10 @@ Upload and download are path-based and streaming, not in-memory bytes:
 ```python
 client.datasets.import_file_data(dataset_id=123, file="local/path.csv")  # WRITES data
 client.dataset_snapshot.download_historic_releases_csv(
-    dataflow_id=1, dataset_id=123, file_name="releases.csv", dest="local/out.csv",
+    dataflow_id=1,
+    dataset_id=123,
+    file_name="releases.csv",
+    dest="local/out.csv",
 )
 
 # Full dataflow schema export ZIP (.schema/.qcrules/.unique/.integrity/
@@ -156,7 +161,8 @@ client.dataset_snapshot.download_historic_releases_csv(
 # datasetSchemaIds.ids) — same format the Reportnet UI's schema export
 # produces. Requires DATAFLOW_CUSTODIAN or DATAFLOW_STEWARD on the dataflow.
 client.dataset_schema.export_dataflow_schemas_zip(
-    dataflow_id=4321, dest="local/dataflow_4321_schemas.zip",
+    dataflow_id=4321,
+    dest="local/dataflow_4321_schemas.zip",
 )
 ```
 
@@ -176,7 +182,7 @@ try:
     client.datasets.check_import_process(dataset_id=999)
 except NotFoundError as e:
     print(e.status_code, e.response_body)
-    print(e)            # includes the server's JSON `message` (first 200 chars)
+    print(e)  # includes the server's JSON `message` (first 200 chars)
     print(e.explain())  # plain-language cause and what to try
 ```
 
