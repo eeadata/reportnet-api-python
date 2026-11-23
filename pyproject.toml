@@ -73,6 +73,7 @@ select = [
 # ANN is left out on purpose: mypy strict already enforces annotations.
 ignore = [
     "PLR0913",  # resource methods mirror the endpoint's parameters
+    "PLR0917",  # same; making them keyword-only would break positional callers
     "PLC0415",  # pandas is imported lazily so that it stays optional
     "FBT001",   # boolean parameters are public API; changing them is a breaking change
     "FBT002",   # same

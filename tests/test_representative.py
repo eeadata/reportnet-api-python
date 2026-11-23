@@ -238,12 +238,12 @@ def test_async_lead_reporter_routes(tmp_path: Path) -> None:
 def test_create_lead_reporter_is_keyword_only() -> None:
     with ReportnetClient(base_url=BASE_URL, token="t") as client:
         with pytest.raises(TypeError):
-            client.representative.create_lead_reporter(77, 5, "a@example.org")  # type: ignore[misc]
+            client.representative.create_lead_reporter(77, 5, "a@example.org")  # type: ignore[call-arg]
 
     async def run() -> None:
         async with AsyncReportnetClient(base_url=BASE_URL, token="t") as client:
             with pytest.raises(TypeError):
-                await client.representative.create_lead_reporter(77, 5, "a@example.org")  # type: ignore[misc]
+                await client.representative.create_lead_reporter(77, 5, "a@example.org")  # type: ignore[call-arg]
 
     asyncio.run(run())
 

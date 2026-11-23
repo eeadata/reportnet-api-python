@@ -31,6 +31,7 @@ import fme
 import fmeobjects
 from reportnet_api import easy
 
+
 class FeatureProcessor(object):
     def __init__(self):
         self.rows = []
@@ -49,7 +50,7 @@ class FeatureProcessor(object):
             )
         finally:
             client.close()
-        for row in rows:                      # every value is text, empty cells are ''
+        for row in rows:  # every value is text, empty cells are ''
             out = fmeobjects.FMEFeature()
             for name, value in row.items():
                 out.setAttribute(name, value)
