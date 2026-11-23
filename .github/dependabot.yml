@@ -4,7 +4,13 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    groups:
+      actions:
+        update-types: [minor, patch]
   - package-ecosystem: uv
     directory: /
     schedule:
       interval: monthly
+    groups:
+      python-deps:
+        update-types: [minor, patch]
